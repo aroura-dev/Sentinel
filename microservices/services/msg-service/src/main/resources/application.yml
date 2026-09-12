@@ -1,0 +1,81 @@
+server:
+  port: 8082
+
+springfox:
+  documentation:
+    enabled: false   # 切片阶段禁用 swagger（springfox3 与 Boot2.6+ 有兼容 NPE）
+
+spring:
+  application:
+    name: msg-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:33062/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: 127.0.0.1
+    port: 6381
+    password: ${SPRING_REDIS_PASSWORD:}
+    timeout: 3000ms
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  kafka:
+    bootstrap-servers: 127.0.0.1:29092
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+# sentinel 运行时开关：Kafka 消息管道（生产+消费同进程闭环）
+sentinel:
+  mq:
+    pipeline: kafka
+  nacos:
+    enabled: false
+  xxl:
+    job:
+      enabled: false
+  business:
+    topic:
+      name: sentinelBusiness
+    log:
+      topic:
+        name: sentinelTraceLog
+    recall:
+      topic:
+        name: sentinelRecall
+      group:
+        name: recallGroupId
+    tagId:
+      key: kafka_tag_id
+      value: com.aroura.sentinel
+    upload:
+      crowd:
+        path: ./data/crowd
+  # 敏感词：msg 进程不启用（避免依赖字典文件；如需过滤在 logistics/agent 侧内容合规前置）
+  senswords:
+    filter:
+      enabled: false
+    dict:
+      path: classpath:sensitive-words.txt
+
+# okhttp 客户端（sentinel-support 工具用）
+ok:
+  http:
+    connect-timeout: 30
+    read-timeout: 30
+    write-timeout: 30
+    keep-alive-duration: 300
+    max-idle-connections: 200
+
+# 配置中心开关（apollo/nacos 均不启用，本地直连）
+apollo:
+  bootstrap:
+    enabled: false
+    namespaces: application
+
+nacos:
+  data-id: sentinel
+  group: DEFAULT_GROUP

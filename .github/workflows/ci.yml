@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (mvn test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Backend tests
+        run: mvn -B -ntp test
+
+  frontend:
+    name: Frontend (vitest + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: sentinel-frontend
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20.19'
+          cache: npm
+          cache-dependency-path: sentinel-frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  microservices:
+    name: Microservices (mvn test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: microservices
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Install microservice parent POM
+        run: mvn -B -ntp -N install
+      - name: Microservice backend tests
+        run: mvn -B -ntp -pl sentinel-logistics,sentinel-agent,sentinel-service-api-impl -am test
+
+  deployment-smoke:
+    name: Docker deployment smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Package backend jar
+        run: mvn -B -ntp -pl sentinel-web -am -DskipTests package
+      - name: Validate Compose config
+        run: docker compose -f docker-compose.sentinel.yml config --quiet
+      - name: Build and start stack
+        run: docker compose -f docker-compose.sentinel.yml up -d --build
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend did not become healthy in time"
+          docker compose -f docker-compose.sentinel.yml logs --no-color backend
+          exit 1
+      - name: Verify administrator login
+        run: |
+          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login?username=admin&password=Admin%40123')
+          echo "$response"
+          echo "$response" | grep -q '"status":"0"'
+      - name: Show container logs
+        if: always()
+        run: docker compose -f docker-compose.sentinel.yml logs --no-color
+      - name: Stop stack
+        if: always()
+        run: docker compose -f docker-compose.sentinel.yml down -v

@@ -1,0 +1,88 @@
+# Sentinel 轻量本地部署（MySQL + Redis + 后端 + 前端，dev profile，eventBus 免 MQ）
+# 用法：
+#   1. mvn -ntp -pl sentinel-web -am -DskipTests package
+#   2. docker compose -f docker-compose.sentinel.yml up -d --build
+# 首次启动且 MySQL 数据卷为空时，会按依赖顺序执行 doc/sql。
+# 访问：http://localhost:5173（admin / Admin@123）
+name: sentinel
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: sentinel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${SENTINEL_DATABASE_PASSWORD:-root123_A}
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - sentinel-mysql-data:/var/lib/mysql
+      - ./doc/sql:/schema:ro
+      - ./doc/docker/mysql/init-sentinel.sh:/docker-entrypoint-initdb.d/00-init-sentinel.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:6-alpine
+    container_name: sentinel-redis
+    restart: unless-stopped
+    command: ["sh", "-c", "exec redis-server --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      REDIS_PASSWORD: ${SENTINEL_REDIS_PASSWORD:-sentinel}
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build: .
+    container_name: sentinel-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      SENTINEL_DATABASE_IP: mysql
+      SENTINEL_DATABASE_PORT: 3306
+      SENTINEL_DATABASE_PASSWORD: ${SENTINEL_DATABASE_PASSWORD:-root123_A}
+      SENTINEL_REDIS_IP: redis
+      SENTINEL_REDIS_PORT: 6379
+      SENTINEL_REDIS_PASSWORD: ${SENTINEL_REDIS_PASSWORD:-sentinel}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  frontend:
+    build: ./sentinel-frontend
+    container_name: sentinel-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5173/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  sentinel-mysql-data:

@@ -1,0 +1,30 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: logistics-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:33063/sentinel_logistics?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+sentinel:
+  login:
+    enabled: true
+
+# 通知闭环相关开关/模板（与单体一致）
+notify:
+  dispatch:
+    enabled: true
+    template-id: 3
+  dedup-hours: 24
+
+# 跨服务 REST 目标（本机联调；容器化后改服务名）
+service:
+  agent-url: http://127.0.0.1:8084
+  msg-url: http://127.0.0.1:8082

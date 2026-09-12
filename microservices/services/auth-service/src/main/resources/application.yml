@@ -1,0 +1,30 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:33061/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: 127.0.0.1
+    port: 6381
+    password: ${SPRING_REDIS_PASSWORD:}
+    timeout: 3000ms
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+# 与单体 AuthService 一致：token TTL、Redis key sentinel:token:
+sentinel:
+  login:
+    enabled: true
+    token-ttl-seconds: 7200
+
+# 记住我（长效 token TTL）与手机号自助注册默认角色
+auth:
+  remember-ttl-seconds: 604800
+  register-default-role: MERCHANT

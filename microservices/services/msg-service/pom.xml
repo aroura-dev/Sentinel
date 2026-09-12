@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aroura.sentinel</groupId>
+        <artifactId>sentinel</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>msg-service</artifactId>
+    <name>msg-service</name>
+    <description>sentinel-ms 消息触达服务：消息发送引擎 + Kafka 消费，写 sentinel_msg（message_template/sms_record/channel_account）</description>
+
+    <dependencies>
+        <!-- sentinel 共享库 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-support</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-service-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-service-api-impl</artifactId>
+        </dependency>
+        <!-- handler 复用时剔除 sentinel-agent/logistics（其仅被 3 个 Agent*Action 引用，
+             本服务已按类名排除装配；不引入即可避免误带 agent 依赖） -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-handler</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.aroura.sentinel</groupId>
+                    <artifactId>sentinel-agent</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.aroura.sentinel</groupId>
+                    <artifactId>sentinel-logistics</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- 运行时 starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>msg-service</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.aroura.msg.MsgApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

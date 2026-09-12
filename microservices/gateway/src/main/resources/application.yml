@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sentinel-gateway
+  redis:
+    host: ${REDIS_HOST:127.0.0.1}
+    port: ${REDIS_PORT:6381}
+    password: ${SPRING_REDIS_PASSWORD:}
+    timeout: 3000ms
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
+      # strangler 路由：已迁到微服务的片优先；其余 /api/** 回源单体后端（保留全量接口），
+      # 迁移进度 = 把更多具体前缀从 legacy 切到对应微服务
+      routes:
+        # 已迁移片 1：认证(auth-service)
+        - id: auth-service
+          uri: ${AUTH_URI:http://127.0.0.1:8081}
+          predicates:
+            - Path=/api/auth/login,/api/auth/logout,/api/auth/me,/api/auth/sms/**
+        # 已迁移片 2：物流通知闭环 + 订单查询(logistics-service)
+        - id: logistics-service
+          uri: ${LOGISTICS_URI:http://127.0.0.1:8083}
+          predicates:
+            - Path=/api/logistics/orders/**,/api/logistics/notify/**
+        # 兜底：其余原版后端接口 -> 单体(legacy, :8090)，保证原版 Vue UI 全量可用
+        - id: legacy-backend
+          uri: ${LEGACY_URI:http://127.0.0.1:8090}
+          predicates:
+            - Path=/api/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

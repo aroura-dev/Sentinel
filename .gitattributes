@@ -1,0 +1,22 @@
+# Normalize cross-platform source files; Windows scripts keep CRLF.
+*.sh text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+.dockerignore text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
