@@ -1,0 +1,16 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: agent-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:33064/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# 通义千问（缺 key 时 ContentGenAgent 调用期降级为规则/默认文案，仍写 agent_call_log）
+dashscope:
+  api-key: ${DASHSCOPE_API_KEY:}
+  model-name: qwen-plus

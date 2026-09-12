@@ -1,0 +1,6 @@
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+ENV TZ=Asia/Shanghai JAVA_OPTS=""
+COPY dist/logistics-service.jar /app/logistics-service.jar
+EXPOSE 8083
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/logistics-service.jar"]

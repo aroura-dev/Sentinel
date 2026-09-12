@@ -1,0 +1,66 @@
+# Sentinel 轻量一键部署（仅 mysql/redis/backend/frontend，dev profile，eventBus 免 MQ）
+# 用法：
+#   mvn -pl austin-web -am package -DskipTests        # 先打包后端 jar
+#   docker compose -f docker-compose.sentinel.yml up -d --build
+# 首次启动 mysql 卷为空时由 init-austin.sh 按依赖顺序执行 doc/sql
+# 访问：前端 http://localhost:5173（admin/Admin@123）
+name: sentinel
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: sentinel-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123_A
+    ports:
+      - "3307:3306"
+    volumes:
+      - sentinel-mysql-data:/var/lib/mysql
+      - ./doc/sql:/schema:ro
+      - ./doc/docker/mysql/init-austin.sh:/docker-entrypoint-initdb.d/00-init-austin.sh:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:6-alpine
+    container_name: sentinel-redis
+    command: ["redis-server", "--requirepass", "austin"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "austin", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build: .
+    container_name: sentinel-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      AUSTIN_DATABASE_IP: mysql
+      AUSTIN_DATABASE_PORT: 3306
+      AUSTIN_REDIS_IP: redis
+      AUSTIN_REDIS_PORT: 6379
+      AUSTIN_REDIS_PASSWORD: austin
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./sentinel-frontend
+    container_name: sentinel-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+volumes:
+  sentinel-mysql-data:

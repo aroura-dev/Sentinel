@@ -1,0 +1,6 @@
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+ENV TZ=Asia/Shanghai JAVA_OPTS=""
+COPY dist/agent-service.jar /app/agent-service.jar
+EXPOSE 8084
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/agent-service.jar"]

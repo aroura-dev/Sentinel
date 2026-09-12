@@ -1,0 +1,29 @@
+# build
+target/
+**/target/
+dist/
+
+# 前端依赖/日志
+frontend-vue/node_modules/
+**/node_modules/
+frontend-vue/frontend-run.log
+
+# logs & runtime
+*.log
+logs/
+**/logs/
+
+# env / secrets
+.env
+**/.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# data dirs
+data/
+**/data/crowd/

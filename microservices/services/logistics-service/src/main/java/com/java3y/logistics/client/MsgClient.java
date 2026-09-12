@@ -1,0 +1,62 @@
+package com.java3y.logistics.client;
+
+import java.util.Collections;
+import java.util.Map;
+
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
+/**
+ * msg-service 客户端：投递消息（复用其公开 POST /send，模板按 id）。
+ * 仅负责把通知送进消息引擎，是否真实下发/落 sms_record 由 msg-service 负责。
+ *
+ * @author sentinel-ms
+ */
+@Component
+public class MsgClient {
+
+    private static final Logger log = LoggerFactory.getLogger(MsgClient.class);
+
+    private final RestTemplate restTemplate;
+    private final String msgUrl;
+
+    public MsgClient(RestTemplate restTemplate, @Value("${service.msg-url}") String msgUrl) {
+        this.restTemplate = restTemplate;
+        this.msgUrl = msgUrl;
+    }
+
+    /**
+     * 提交发送
+     *
+     * @return 是否被引擎受理（response.code == "0"）
+     */
+    public boolean send(long templateId, String bizId, String receiver, String orderNo) {
+        Map<String, Object> messageParam = new java.util.HashMap<>(4);
+        messageParam.put("bizId", bizId);
+        messageParam.put("receiver", receiver);
+        messageParam.put("variables", Collections.singletonMap("orderNo", orderNo));
+
+        Map<String, Object> req = new java.util.HashMap<>(4);
+        req.put("code", "send");
+        req.put("messageTemplateId", templateId);
+        req.put("messageParam", messageParam);
+        try {
+            String resp = restTemplate.postForObject(msgUrl + "/send", req, String.class);
+            if (resp == null) {
+                return false;
+            }
+            JSONObject json = JSON.parseObject(resp);
+            String code = json == null ? null : json.getString("code");
+            return "0".equals(code);
+        } catch (Exception e) {
+            log.warn("[MsgClient] 提交发送失败 templateId={} orderNo={} err={}", templateId, orderNo, e.getMessage());
+            return false;
+        }
+    }
+}

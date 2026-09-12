@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>austin</artifactId>
+        <groupId>com.java3y.austin</groupId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>sentinel-agent</artifactId>
+    <description>Sentinel AI Agent 模块：6 个 Agent（LangChain4j + 通义千问）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.java3y.austin</groupId>
+            <artifactId>austin-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.java3y.austin</groupId>
+            <artifactId>sentinel-logistics</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+        </dependency>
+
+        <!-- LangChain4j AI Agent 框架 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
+        <!-- 通义千问（DashScope）模型适配 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-dashscope</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.yomahub</groupId>
+            <artifactId>liteflow-core</artifactId>
+            <version>2.16.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yomahub</groupId>
+            <artifactId>liteflow-rule-db-sql</artifactId>
+            <version>2.16.1</version>
+        </dependency>
+    </dependencies>
+
+</project>

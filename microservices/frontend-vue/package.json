@@ -1,0 +1,30 @@
+{
+  "name": "sentinel-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sentinel 物流异常智能处置平台 - Vue3 前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "axios": "^1.6.8",
+    "echarts": "^5.5.0",
+    "element-plus": "^2.7.0",
+    "leaflet": "^1.9.4",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "happy-dom": "^15.11.7",
+    "vite": "^5.2.0",
+    "vitest": "^2.1.8"
+  }
+}

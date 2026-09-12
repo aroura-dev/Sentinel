@@ -1,0 +1,6 @@
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+ENV TZ=Asia/Shanghai JAVA_OPTS=""
+COPY dist/auth-service.jar /app/auth-service.jar
+EXPOSE 8081
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/auth-service.jar"]

@@ -1,0 +1,202 @@
+name: sentinelms
+
+# ============================================================
+# sentinel-ms 基础设施（阶段0）：Kafka + Zookeeper + Redis + 4×独立 MySQL
+# 每个业务服务一个独立 MySQL 容器 + 自己的 init 脚本（auth/msg/logistics/agent）。
+# 业务服务/网关/前端镜像在后续阶段加入 compose.yml（extends 本文件）。
+# 用法：
+#   docker compose -f compose.infra.yml up -d
+#   docker compose -f compose.infra.yml ps
+# ============================================================
+services:
+  zookeeper:
+    image: zookeeper:3.8.4
+    container_name: sentinelms-zookeeper
+    ports: ["2181:2181"]
+
+  kafka:
+    image: wurstmeister/kafka:2.13-2.6.0
+    container_name: sentinelms-kafka
+    depends_on: [zookeeper]
+    environment:
+      KAFKA_BROKER_ID: 1
+      # 双 listener：INTERNAL(kafka:9092，供容器内自连/服务互连) + EXTERNAL(127.0.0.1:29092，供宿主机 jar 联调)
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://127.0.0.1:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "sentinelBusiness:1:1,sentinelRecall:1:1,sentinelTraceLog:1:1,sentinel-anomaly:1:1,sentinel-notify:1:1,sentinel-workorder:1:1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports: ["29092:29092"]
+
+  redis:
+    image: redis:6-alpine
+    container_name: sentinelms-redis
+    command: ["redis-server", "--requirepass", "austin"]
+    ports: ["6381:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "austin", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mysql-auth:
+    image: mysql:5.7
+    container_name: sentinelms-mysql-auth
+    environment:
+      MYSQL_ROOT_PASSWORD: root123_A
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
+    ports: ["33061:3306"]
+    volumes:
+      - auth-mysql-data:/var/lib/mysql
+      - ../mysql/auth/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mysql-msg:
+    image: mysql:5.7
+    container_name: sentinelms-mysql-msg
+    environment:
+      MYSQL_ROOT_PASSWORD: root123_A
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
+    ports: ["33062:3306"]
+    volumes:
+      - msg-mysql-data:/var/lib/mysql
+      - ../mysql/msg/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mysql-logistics:
+    image: mysql:5.7
+    container_name: sentinelms-mysql-logistics
+    environment:
+      MYSQL_ROOT_PASSWORD: root123_A
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
+    ports: ["33063:3306"]
+    volumes:
+      - logistics-mysql-data:/var/lib/mysql
+      - ../mysql/logistics/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mysql-agent:
+    image: mysql:5.7
+    container_name: sentinelms-mysql-agent
+    environment:
+      MYSQL_ROOT_PASSWORD: root123_A
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
+    ports: ["33064:3306"]
+    volumes:
+      - agent-mysql-data:/var/lib/mysql
+      - ../mysql/agent/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # ---------- 应用服务（构建：先 mvn -am package 出各 jar，再 docker compose build） ----------
+  sms-stub:
+    image: node:18-alpine
+    container_name: sentinelms-sms-stub
+    command: ["node", "-e", "require('http').createServer((q,s)=>{let b='';q.on('data',c=>b+=c);q.on('end',()=>{const p=new URLSearchParams(b),d=(p.get('mobile')||'').split(',').filter(Boolean).map((m,i)=>({mobile:m,sid:'s'+i,count:1,code:0,msg:'ok'}));s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({code:0,data:d}))})}).listen(18999,'0.0.0.0')"]
+
+  auth-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.auth-service}
+    container_name: sentinelms-auth-service
+    depends_on:
+      mysql-auth: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-auth:3306/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: austin
+      # 验证码短信走真实引擎(msg-service)
+      SMS_ENGINE_MSG_URL: http://msg-service:8082
+      SMS_ENGINE_TEMPLATE_ID: "1011"
+      # 验证码不回传接口（从 Redis/短信查收，手动输入）；本地联调需要时临时置 true
+      SMS_DEV_RETURN_CODE: "false"
+    ports: ["8081:8081"]
+
+  msg-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.msg-service}
+    container_name: sentinelms-msg-service
+    depends_on:
+      mysql-msg: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-msg:3306/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: austin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports: ["8082:8082"]
+
+  logistics-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.logistics-service}
+    container_name: sentinelms-logistics-service
+    depends_on:
+      mysql-logistics: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-logistics:3306/sentinel_logistics?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123_A
+      SERVICE_AGENT_URL: http://agent-service:8084
+      SERVICE_MSG_URL: http://msg-service:8082
+    ports: ["8083:8083"]
+
+  agent-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.agent-service}
+    container_name: sentinelms-agent-service
+    depends_on:
+      mysql-agent: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-agent:3306/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123_A
+    ports: ["8084:8084"]
+
+  gateway:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.gateway}
+    container_name: sentinelms-gateway
+    environment:
+      AUTH_URI: http://auth-service:8081
+      LOGISTICS_URI: http://logistics-service:8083
+      LEGACY_URI: http://host.docker.internal:8090
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: austin
+    ports: ["8080:8080"]
+    depends_on:
+      - auth-service
+      - logistics-service
+
+  frontend:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.frontend}
+    container_name: sentinelms-frontend
+    ports: ["5175:5175"]
+    depends_on:
+      - gateway
+
+volumes:
+  auth-mysql-data:
+  msg-mysql-data:
+  logistics-mysql-data:
+  agent-mysql-data:

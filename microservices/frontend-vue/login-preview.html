@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel 登录 · 最终预览</title>
+<style>
+  @font-face{ font-family:'Space Grotesk Variable'; font-style:normal; font-display:swap; font-weight:100 900;
+    src:url('node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2') format('woff2-variations'); }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .page{ display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); min-height:100vh; background:#fff; }
+
+  /* 左：青绿品牌面板 */
+  .brand{ position:relative; display:flex; flex-direction:column; overflow:hidden; padding:48px 56px 40px;
+    color:#e9f4f7;
+    background:
+      radial-gradient(760px 480px at 88% -8%, rgba(34,211,238,.22), transparent 62%),
+      radial-gradient(520px 420px at -10% 112%, rgba(8,145,178,.16), transparent 58%),
+      linear-gradient(140deg,#0a2836 0%,#0d4658 55%,#106070 100%); }
+  .brand svg{ display:block; }
+  .btop{ display:flex; align-items:center; gap:14px; }
+  .bname{ font-family:'Space Grotesk Variable',Candara,'Century Gothic','Segoe UI',Arial,sans-serif; font-size:23px;
+    font-weight:600; letter-spacing:.16em; line-height:1.1; color:#fff;
+    background-image:linear-gradient(180deg,#fff 35%,#9be0f0 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
+  .bcn{ margin-top:4px; font-size:12px; letter-spacing:2px; color:#9fb8c2; }
+  .bmid{ margin:auto 0; padding:48px 0 44px; max-width:480px; }
+  h1{ margin:0; font-size:clamp(28px,3.2vw,44px); font-weight:600; line-height:1.3; letter-spacing:.5px; color:#f4fafc; }
+  ul.features{ list-style:none; margin:34px 0 0; padding:0; }
+  ul.features li{ display:flex; align-items:center; gap:14px; padding:14px 2px; border-top:1px solid rgba(255,255,255,.08); }
+  ul.features li:last-child{ border-bottom:1px solid rgba(255,255,255,.08); }
+  .ic{ flex:none; display:grid; place-items:center; width:36px; height:36px; border-radius:10px;
+    color:#67e8f9; background:rgba(34,211,238,.12); border:1px solid rgba(103,232,249,.25); }
+  .ic svg{ width:17px; height:17px; }
+  .tx b{ display:block; font-size:15px; font-weight:500; color:#eef6f9; }
+  .tx small{ display:block; margin-top:3px; font-size:12px; color:#8aa6b1; }
+  .bfoot{ font-size:12px; letter-spacing:1px; color:rgba(165,187,196,.55); }
+  /* 雷达装饰 */
+  .radar{ position:absolute; right:-120px; bottom:-150px; width:360px; height:360px; pointer-events:none; }
+  .radar span{ position:absolute; left:50%; top:50%; border-radius:50%; border:1px solid rgba(148,233,255,.14);
+    transform:translate(-50%,-50%); }
+  .r1{ width:300px; height:300px; }
+  .r2{ width:205px; height:205px; border-color:rgba(148,233,255,.12)!important; }
+  .r3{ width:110px; height:110px; border-color:rgba(148,233,255,.1)!important; }
+  .blip{ width:8px!important; height:8px!important; background:#7de9ff; border:0!important; top:47%!important; left:66%!important;
+    transform:translate(-50%,-50%)!important; animation:blip 2.8s ease-out infinite; }
+  @keyframes blip{ 0%{ box-shadow:0 0 0 0 rgba(125,233,255,.5);} 70%{ box-shadow:0 0 0 24px rgba(125,233,255,0);} 100%{ box-shadow:0 0 0 0 rgba(125,233,255,0);} }
+
+  /* 右：登录面板 */
+  .form{ display:flex; align-items:center; justify-content:center; padding:48px 40px; background:#fff; }
+  .shell{ width:min(408px,100%); display:flex; flex-direction:column; animation:rise .4s ease-out both; }
+  @keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+  .mbrand{ display:none; }
+
+  .card{ background:#fff; border:1px solid #e5e6eb; border-radius:14px; padding:30px 32px 24px;
+    box-shadow:0 2px 16px rgba(29,33,41,.05); }
+  .welcome{ font-size:24px; font-weight:600; color:#1d2129; }
+  .wsub{ margin:8px 0 20px; font-size:13px; color:#86909c; }
+
+  /* 下划线 Tab */
+  .tabs{ display:flex; gap:26px; border-bottom:1px solid #eceff3; margin-bottom:14px; }
+  .tabs button{ position:relative; padding:0 2px 10px; border:0; background:none; cursor:pointer; font-family:inherit;
+    font-size:14px; color:#5a6472; }
+  .tabs button.active{ color:#0891b2; font-weight:500; }
+  .tabs button.active::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:#0891b2; }
+  .tabs button:hover{ color:#0891b2; }
+
+  .panel{ display:block; }
+  .panel.hidden{ display:none; }
+  .field{ width:100%; margin-bottom:16px; }
+  .field input{ width:100%; height:44px; padding:0 12px; font-size:14px; font-family:inherit; color:#1d2129;
+    caret-color:#0891b2; background:#f7f8fa; border:1px solid #e4e7ec; border-radius:8px; outline:none;
+    transition:border-color .15s, box-shadow .15s, background .15s; }
+  .field input::placeholder{ color:#9aa3b2; }
+  .field input:hover{ border-color:#d0d5dd; }
+  .field input:focus{ background:#fff; border-color:#0891b2; box-shadow:0 0 0 3px rgba(8,145,178,.12); }
+  /* 验证码输入框 + 右侧内联“获取验证码”（与账号模式同为通栏输入） */
+  .codebox{ position:relative; margin-bottom:16px; }
+  .codebox input{ padding-right:96px; }
+  .codebox span{ position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    font-size:13px; color:#0891b2; cursor:pointer; }
+  .codebox span:hover{ color:#06b6d4; }
+  .codebox span.counting{ color:#9aa3b2; cursor:default; }
+
+  .remrow{ display:flex; align-items:center; justify-content:space-between; margin:2px 0 18px; font-size:13px; }
+  .remrow label{ display:inline-flex; align-items:center; gap:6px; color:#4e5969; cursor:pointer; }
+  .remrow input[type=checkbox]{ appearance:none; width:14px; height:14px; margin:0; border-radius:4px; cursor:pointer;
+    background:#fff; border:1px solid #d0d5dd; position:relative; outline:none; }
+  .remrow input[type=checkbox]:checked{ background:#0891b2; border-color:#0891b2; }
+  .remrow input[type=checkbox]:checked::after{ content:""; position:absolute; left:4px; top:1px; width:4px; height:8px;
+    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .remrow .forgot{ color:#86909c; cursor:pointer; }
+  .remrow .forgot:hover{ color:#0891b2; }
+
+  .submit{ width:100%; height:44px; border:0; border-radius:8px; font-size:15px; font-weight:500; letter-spacing:4px;
+    color:#fff; background:linear-gradient(90deg,#0891b2,#06b6d4); cursor:pointer; font-family:inherit;
+    box-shadow:0 8px 18px -10px rgba(6,182,212,.6); transition:filter .15s, transform .15s; }
+  .submit:hover{ filter:brightness(1.06); transform:translateY(-1px); }
+  .submit:active{ transform:none; }
+
+  .help-row{ display:flex; align-items:center; justify-content:center; gap:12px; margin-top:22px; padding-top:16px;
+    border-top:1px solid #eef0f3; font-size:12px; color:#9aa3b2; }
+  .help-row span{ cursor:pointer; }
+  .help-row span:hover{ color:#0891b2; }
+  .help-row i{ color:#e0e3e8; font-style:normal; }
+
+  .foot{ display:none; }
+
+  @media (max-width:1023.98px){
+    .page{ grid-template-columns:1fr; background:#f7f8fa; }
+    .brand{ display:none; }
+    .form{ padding:40px 20px; background:#f7f8fa; }
+    .mbrand{ display:flex; flex-direction:column; align-items:center; margin-bottom:26px; }
+    .mbrand svg{ display:block; }
+    .mname{ margin-top:13px; font-family:'Space Grotesk Variable',Candara,'Century Gothic','Segoe UI',Arial,sans-serif;
+      font-size:21px; font-weight:600; letter-spacing:.16em; color:#1d2129; line-height:1.1; }
+    .mcn{ margin-top:8px; font-size:12px; letter-spacing:2px; color:#86909c; }
+    .foot{ display:block; margin-top:20px; text-align:center; font-size:12px; letter-spacing:1px; color:#c0c4cc; }
+  }
+  @media (max-width:480px){ .card{ padding:22px 20px 20px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 左：品牌面板 -->
+  <aside class="brand">
+    <div class="btop">
+      <svg viewBox="0 0 48 48" width="36" height="36">
+        <g stroke="#67e8f9"><path d="M9.8 18.5L38.2 29.5M29.5 9.8L18.5 38.2" stroke-width=".9" opacity=".3" fill="none"/>
+        <path d="M8 24h32" stroke-width="1" opacity=".4" fill="none"/>
+        <path d="M24 8c-5.6 5.6-5.6 26 0 31.6M24 8c5.6 5.6 5.6 26 0 31.6" stroke-width="1" opacity=".4" fill="none"/>
+        <circle cx="24" cy="24" r="12.6" stroke-width="1" opacity=".5" fill="none"/><circle cx="24" cy="24" r="16" stroke-width="2.4" fill="none"/>
+        <path d="M27 27L37 11" stroke-width="2" stroke-linecap="round" fill="none"/></g>
+        <circle cx="27" cy="27" r="1.8" fill="#67e8f9"/><path d="M37 11L30.5 9L34.5 3.5Z" fill="#67e8f9"/>
+      </svg>
+      <div><div class="bname">SENTINEL</div><div class="bcn">物流异常智能处置平台</div></div>
+    </div>
+
+    <div class="bmid">
+      <h1>异常全程处置，<br>客诉风险可控</h1>
+      <ul class="features">
+        <li><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></span>
+          <div class="tx"><b>自动识别成单</b><small>晚点、滞留、破损等异常，判定后直接生成工单</small></div></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 4a7 7 0 0 1 7 7c0 2 .5 3.5 1 5H4c.5-1.5 1-3 1-5a7 7 0 0 1 7-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 19h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+          <div class="tx"><b>按角色通知</b><small>商家、承运商、收货人各接收与其相关的处理信息</small></div></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h11v8H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 8h3l2 2v4h-2l-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" opacity=".6"/></svg></span>
+          <div class="tx"><b>客服分级应答</b><small>常规问题即时答复，疑难问题转交人工处理</small></div></li>
+      </ul>
+    </div>
+
+    <div class="bfoot">企业级加密传输 · 操作全链路留痕</div>
+    <div class="radar"><span class="r1"></span><span class="r2"></span><span class="r3"></span><span class="blip"></span></div>
+  </aside>
+
+  <!-- 右：登录卡片 -->
+  <section class="form">
+    <div class="shell">
+      <div class="mbrand">
+        <svg viewBox="0 0 48 48" width="34" height="34">
+          <g stroke="#0891b2"><path d="M9.8 18.5L38.2 29.5M29.5 9.8L18.5 38.2" stroke-width=".9" opacity=".3" fill="none"/>
+          <path d="M8 24h32" stroke-width="1" opacity=".4" fill="none"/>
+          <path d="M24 8c-5.6 5.6-5.6 26 0 31.6M24 8c5.6 5.6 5.6 26 0 31.6" stroke-width="1" opacity=".4" fill="none"/>
+          <circle cx="24" cy="24" r="12.6" stroke-width="1" opacity=".5" fill="none"/><circle cx="24" cy="24" r="16" stroke-width="2.4" fill="none"/>
+          <path d="M27 27L37 11" stroke-width="2" stroke-linecap="round" fill="none"/></g>
+          <circle cx="27" cy="27" r="1.8" fill="#0891b2"/><path d="M37 11L30.5 9L34.5 3.5Z" fill="#0891b2"/>
+        </svg>
+        <div class="mname">SENTINEL</div>
+        <div class="mcn">物流异常智能处置平台</div>
+      </div>
+
+      <div class="card">
+        <div class="welcome">欢迎回来</div>
+        <div class="wsub">登录后继续处理异常工单，跟进物流运营</div>
+
+        <div class="tabs" role="tablist">
+          <button class="active" data-p="pw">账号登录</button>
+          <button data-p="sms">验证码登录</button>
+        </div>
+
+        <form id="pw" autocomplete="off" onsubmit="return false">
+          <div class="field"><input name="u" placeholder="请输入用户名"></div>
+          <div class="field"><input name="p" type="password" placeholder="请输入密码"></div>
+          <div class="remrow"><label><input type="checkbox" checked> 记住我</label>
+            <span class="forgot" onclick="alert('功能建设中，敬请期待')">忘记密码？</span></div>
+          <button class="submit">登录</button>
+        </form>
+
+        <form id="sms" class="hidden" autocomplete="off" onsubmit="return false">
+          <div class="field"><input name="ph" placeholder="请输入手机号"></div>
+          <div class="field codebox">
+            <input name="code" placeholder="请输入验证码">
+            <span id="getCode">获取验证码</span>
+          </div>
+          <div class="remrow"><label><input type="checkbox" checked> 记住我</label></div>
+          <button class="submit">登录</button>
+        </form>
+
+        <div class="help-row"><span>在线客服</span><i>|</i><span>账号问题帮助</span><i>|</i><span>注册账号</span></div>
+      </div>
+
+      <div class="foot">企业级加密传输 · 操作全链路留痕</div>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('pw').classList.toggle('hidden', btn.dataset.p !== 'pw');
+      document.getElementById('sms').classList.toggle('hidden', btn.dataset.p !== 'sms');
+    });
+  });
+  var cd = document.getElementById('getCode'), left = 0, timer = null;
+  cd.addEventListener('click', function () {
+    if (left > 0) return;
+    left = 60; cd.classList.add('counting'); cd.textContent = '60s';
+    timer = setInterval(function () {
+      left -= 1; cd.textContent = left + 's';
+      if (left <= 0) { clearInterval(timer); cd.classList.remove('counting'); cd.textContent = '获取验证码'; }
+    }, 1000);
+  });
+</script>
+</body>
+</html>

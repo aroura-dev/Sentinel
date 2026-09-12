@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>pom</packaging>
+
+    <!-- sentinel-ms：Sentinel 微服务化产品（自 D:\internship\sentinel 复制改造，源保留为回归 oracle）。
+         父 pom 与源保持一致（groupId/artifactId/version/revision），仅：
+           - Boot parent 2.5.6 → 2.7.18（Spring Cloud 2021 基线、javax 兼容、可跑 JDK21）
+           - modules 收敛为共享库 + 后续 services/*-service 与 gateway 子模块
+         依赖管理全保真复制源，避免模块 pom 引用了被裁的版本管理导致编译失败。 -->
+    <modules>
+        <module>austin-common</module>
+        <module>austin-support</module>
+        <module>austin-service-api</module>
+        <module>austin-service-api-impl</module>
+        <module>austin-handler</module>
+        <module>sentinel-logistics</module>
+        <module>sentinel-agent</module>
+        <!-- 微服务共享 web 层（身份头 Filter / @RequireRole / VO） -->
+        <module>austin-ms-web</module>
+        <!-- 阶段1 服务（每建一个可编译再加入） -->
+        <module>services/auth-service</module>
+        <module>services/msg-service</module>
+        <module>services/logistics-service</module>
+        <module>services/agent-service</module>
+        <module>gateway</module>
+    </modules>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.18</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.java3y.austin</groupId>
+    <artifactId>austin</artifactId>
+    <version>${revision}</version>
+    <name>sentinel-ms</name>
+    <description>Sentinel · 物流异常主动感知与 AI 自动闭环处置平台（微服务版）</description>
+
+    <properties>
+        <revision>0.0.1-SNAPSHOT</revision>
+
+        <java.version>1.8</java.version>
+        <target.java.version>1.8</target.java.version>
+        <maven.compiler.source>${target.java.version}</maven.compiler.source>
+        <maven.compiler.target>${target.java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 微服务基线 -->
+        <spring-cloud.version>2021.0.8</spring-cloud.version>
+
+        <!-- 依赖库版本（沿用源全量） -->
+        <mysql-connector-java.version>8.0.33</mysql-connector-java.version>
+        <hutool-all.version>5.7.15</hutool-all.version>
+        <guava.version>31.0.1-jre</guava.version>
+        <okhttp.version>4.9.2</okhttp.version>
+        <fastjson2.version>2.0.60</fastjson2.version>
+        <tencentcloud-sdk-java.version>3.1.510</tencentcloud-sdk-java.version>
+        <nacos-config-spring-boot-starter.version>0.2.12</nacos-config-spring-boot-starter.version>
+        <apollo-client.version>2.1.0</apollo-client.version>
+        <lombok.version>1.18.46</lombok.version>
+        <log-record-starter.version>1.0.4.1</log-record-starter.version>
+        <javax.mail.version>1.6.2</javax.mail.version>
+        <springfox-boot-starter.version>3.0.0</springfox-boot-starter.version>
+        <logback-gelf.version>3.0.0</logback-gelf.version>
+        <xxl-job-core.version>2.3.0</xxl-job-core.version>
+        <weixin-java>4.5.3.B</weixin-java>
+        <dynamic-tp-spring-boot-starter-apollo.version>1.0.2</dynamic-tp-spring-boot-starter-apollo.version>
+        <alipay-sdk-java.version>4.39.19.ALL</alipay-sdk-java.version>
+        <alibaba-dingtalk-service-sdk.version>2.0.0</alibaba-dingtalk-service-sdk.version>
+        <rocketmq-spring-boot-starter.version>2.2.2</rocketmq-spring-boot-starter.version>
+        <hades-nacos-starter.version>1.0.4</hades-nacos-starter.version>
+        <langchain4j.version>0.34.0</langchain4j.version>
+        <langchain4j-dashscope.version>0.34.0</langchain4j-dashscope.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 本地内部模块 -->
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-cron</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-handler</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-service-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-service-api-impl</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-support</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>sentinel-logistics</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>sentinel-agent</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.java3y.austin</groupId>
+                <artifactId>austin-ms-web</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!-- mysql驱动：新版坐标（Boot2.7 亦管理） -->
+            <dependency>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>${mysql-connector-java.version}</version>
+            </dependency>
+            <!-- mysql驱动：austin-support 等旧模块仍用旧坐标，保留版本管理 -->
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>${mysql-connector-java.version}</version>
+            </dependency>
+            <!-- hutool -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool-all.version}</version>
+            </dependency>
+            <!-- guava -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <!-- okhttp -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+            <!-- fastjson2 -->
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>${fastjson2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2-extension</artifactId>
+                <version>${fastjson2.version}</version>
+            </dependency>
+            <!-- 腾讯云短信 SDK -->
+            <dependency>
+                <groupId>com.tencentcloudapi</groupId>
+                <artifactId>tencentcloud-sdk-java</artifactId>
+                <version>${tencentcloud-sdk-java.version}</version>
+            </dependency>
+            <!-- nacos -->
+            <dependency>
+                <groupId>com.alibaba.boot</groupId>
+                <artifactId>nacos-config-spring-boot-starter</artifactId>
+                <version>${nacos-config-spring-boot-starter.version}</version>
+            </dependency>
+            <!-- apollo -->
+            <dependency>
+                <groupId>com.ctrip.framework.apollo</groupId>
+                <artifactId>apollo-client</artifactId>
+                <version>${apollo-client.version}</version>
+            </dependency>
+            <!-- 注解日志 -->
+            <dependency>
+                <groupId>cn.monitor4all</groupId>
+                <artifactId>log-record-starter</artifactId>
+                <version>${log-record-starter.version}</version>
+            </dependency>
+            <!-- 邮件 -->
+            <dependency>
+                <groupId>com.sun.mail</groupId>
+                <artifactId>javax.mail</artifactId>
+                <version>${javax.mail.version}</version>
+            </dependency>
+            <!-- swagger -->
+            <dependency>
+                <groupId>io.springfox</groupId>
+                <artifactId>springfox-boot-starter</artifactId>
+                <version>${springfox-boot-starter.version}</version>
+            </dependency>
+            <!-- graylog -->
+            <dependency>
+                <groupId>de.siegmar</groupId>
+                <artifactId>logback-gelf</artifactId>
+                <version>${logback-gelf.version}</version>
+            </dependency>
+            <!-- xxl-job -->
+            <dependency>
+                <groupId>com.xuxueli</groupId>
+                <artifactId>xxl-job-core</artifactId>
+                <version>${xxl-job-core.version}</version>
+            </dependency>
+            <!-- 微信 SDK -->
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-mp</artifactId>
+                <version>${weixin-java}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-miniapp</artifactId>
+                <version>${weixin-java}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-cp</artifactId>
+                <version>${weixin-java}</version>
+            </dependency>
+            <!-- dynamic-tp -->
+            <dependency>
+                <groupId>io.github.lyh200</groupId>
+                <artifactId>dynamic-tp-spring-boot-starter-apollo</artifactId>
+                <version>${dynamic-tp-spring-boot-starter-apollo.version}</version>
+            </dependency>
+            <!-- 支付宝 -->
+            <dependency>
+                <groupId>com.alipay.sdk</groupId>
+                <artifactId>alipay-sdk-java</artifactId>
+                <version>${alipay-sdk-java.version}</version>
+            </dependency>
+            <!-- 钉钉 -->
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>alibaba-dingtalk-service-sdk</artifactId>
+                <version>${alibaba-dingtalk-service-sdk.version}</version>
+            </dependency>
+            <!-- rocketmq -->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>${rocketmq-spring-boot-starter.version}</version>
+            </dependency>
+            <!-- hades -->
+            <dependency>
+                <groupId>io.github.ZhongFuCheng3y</groupId>
+                <artifactId>hades-nacos-starter</artifactId>
+                <version>${hades-nacos-starter.version}</version>
+            </dependency>
+            <!-- spring-boot-configuration-processor（版本由 spring-boot-starter-parent 管理，此处不需声明） -->
+            <!-- LangChain4j + DashScope -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-dashscope</artifactId>
+                <version>${langchain4j-dashscope.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

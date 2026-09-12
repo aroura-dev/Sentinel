@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel-ms 演示台</title>
+<style>
+  :root{--ok:#0a7d33;--err:#c0392b}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;margin:0;background:#f4f6f8;color:#1f2937}
+  .wrap{max-width:960px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#6b7280;font-size:13px;margin-bottom:16px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  button{border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .acct{background:#eef2ff;color:#3730a3}.acct:hover{background:#e0e7ff}
+  input{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:14px}
+  .btn-ok{background:var(--ok);color:#fff}.btn-line{background:#e5e7eb;color:#111}
+  #who{font-weight:600}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#d1fae5;color:#065f46;font-size:12px;margin-left:8px}
+  .badge.scope{background:#fef3c7;color:#92400e}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid #eef0f2;white-space:nowrap}
+  th{color:#6b7280;font-weight:500}
+  .msg{font-size:13px;min-height:18px}
+  .ok{color:var(--ok)}.err{color:var(--err)}
+  code{background:#f3f4f6;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sentinel · 物流异常 AI 闭环平台（微服务演示台）</h1>
+  <div class="sub">经网关 :8080 认证 → 各微服务（auth/msg/logistics/agent，四库隔离）</div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="row" id="acctBtns">
+        <button class="acct" data-u="admin" data-p="Admin@123">admin</button>
+        <button class="acct" data-u="operator" data-p="Operator@123">operator</button>
+        <button class="acct" data-u="merchant" data-p="Merchant@123">merchant</button>
+        <button class="acct" data-u="cs" data-p="Cs@123">cs</button>
+        <button class="acct" data-u="finance" data-p="Finance@123">finance</button>
+      </div>
+      <div class="row">
+        <input id="u" placeholder="用户名" value="admin">
+        <input id="p" type="password" placeholder="密码" value="Admin@123">
+        <button class="btn-ok" onclick="login()">登录</button>
+      </div>
+    </div>
+    <div class="msg" id="whoMsg">未登录。点上方账号一键登录，或手动填用户名/密码。</div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div><b>订单列表</b>（验证 MERCHANT 数据隔离：admin 42 条 / merchant 3 条）
+        <span id="scopeBadge"></span>
+      </div>
+      <button class="btn-line" onclick="loadOrders()">刷新</button>
+    </div>
+    <div class="msg" id="orderMeta"></div>
+    <table>
+      <thead><tr><th>订单号</th><th>merchant_id</th><th>当前节点</th><th>SLA</th><th>买家手机</th><th>目的地</th></tr></thead>
+      <tbody id="orderRows"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <b>触发通知闭环</b>（logistics→agent→msg，三库各落一行）
+    <div class="row" style="margin-top:10px">
+      <input id="orderNo" placeholder="订单号，如 OMT-SEED-0001">
+      <input id="node" placeholder="节点，如 IN_TRANSIT" value="IN_TRANSIT">
+      <button class="btn-ok" onclick="notify()">触发</button>
+    </div>
+    <div class="msg" id="notifyMsg"></div>
+  </div>
+</div>
+
+<script>
+const GW = "http://localhost:8080";
+let TOKEN = "", WHO = "", ROLE = "";
+
+document.querySelectorAll("#acctBtns button").forEach(b => b.onclick = () => { document.getElementById('u').value=b.dataset.u; document.getElementById('p').value=b.dataset.p; login(); });
+
+async function api(path, opt) {
+  const r = await fetch(GW + path, Object.assign({ headers: { "Content-Type": "application/json" } }, opt));
+  const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = t; }
+  if (r.status === 401 || (j && j.status === 401)) { whoMsg("会话失效，请重新登录", 1); TOKEN = ""; }
+  return { r, j };
+}
+function whoMsg(m, isErr) { const el = document.getElementById('whoMsg'); el.className = 'msg ' + (isErr ? 'err' : 'ok'); el.textContent = m; }
+
+async function login() {
+  const u = document.getElementById('u').value.trim(), p = document.getElementById('p').value;
+  const q = new URLSearchParams({ username: u, password: p });
+  const r = await fetch(GW + "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: q });
+  const j = await r.json().catch(() => null);
+  if (r.ok && j && j.data && j.data.token) {
+    TOKEN = j.data.token; WHO = j.data.username; ROLE = j.data.role;
+    whoMsg("已登录：" + WHO + "（" + ROLE + "）token=" + TOKEN.slice(0, 12) + "…");
+    loadOrders();
+  } else { whoMsg("登录失败：" + (j && j.msg || r.status), 1); }
+}
+
+async function loadOrders() {
+  if (!TOKEN) return whoMsg("请先登录", 1);
+  const { r, j } = await api("/api/logistics/orders?page=1&size=50", { headers: { Authorization: "Bearer " + TOKEN } });
+  if (!r.ok || !j || !j.rows) { document.getElementById('orderMeta').className='msg err'; document.getElementById('orderMeta').textContent = "查询失败 http=" + r.status; return; }
+  const badge = document.getElementById('scopeBadge');
+  badge.className = "badge" + (j.scoped ? " scope" : "");
+  badge.textContent = j.scoped ? "已按商户隔离 scope=" + j.scope_user : "全量可见";
+  document.getElementById('orderMeta').className='msg';
+  document.getElementById('orderMeta').textContent = "total=" + j.total + "  当前视角=" + j.viewer + "(" + j.role + ")";
+  const rows = j.rows.map(x => "<tr><td>" + x.order_no + "</td><td>" + (x.merchant_id ?? "") + "</td><td>" + x.current_node + "</td><td>" + (x.sla_status || "") + "</td><td>" + (x.buyer_phone || "") + "</td><td>" + (x.destination_country || "") + "</td></tr>").join("");
+  document.getElementById('orderRows').innerHTML = rows;
+}
+
+async function notify() {
+  if (!TOKEN) return whoMsg("请先登录", 1);
+  const on = document.getElementById('orderNo').value.trim() || "OMT-SEED-0001";
+  const node = document.getElementById('node').value.trim() || "IN_TRANSIT";
+  const q = new URLSearchParams({ orderNo: on, node: node, role: "buyer", channel: "sms" });
+  const el = document.getElementById('notifyMsg'); el.className='msg';
+  const { r, j } = await api("/api/logistics/notify/send?" + q, { method: "POST", headers: { Authorization: "Bearer " + TOKEN } });
+  if (r.ok && j && j.notification) {
+    el.className = "msg ok";
+    el.textContent = "已触发：notification id=" + j.notification.id + " status=" + j.notification.status + "（约 5s 后变为 SENT，且 agent_call_log / sms_record 各落一行）";
+    setTimeout(loadOrders, 200);
+  } else { el.className = "msg err"; el.textContent = "触发失败 http=" + r.status + " " + JSON.stringify(j).slice(0, 200); }
+}
+</script>
+</body>
+</html>
