@@ -21,16 +21,16 @@ public class TencentSmsSender implements SmsSender {
     }
 
     @Override
-    public boolean send(String phone, String code) {
+    public String send(String phone, String code) {
         if (!properties.isEnabled()) {
             log.warn("[SMS] 腾讯云短信未开启，拒绝伪发送 phone={}", mask(phone));
-            return false;
+            return null;
         }
         if (isBlank(properties.getSecretId()) || isBlank(properties.getSecretKey())
                 || isBlank(properties.getSdkAppId()) || isBlank(properties.getSignName())
                 || isBlank(properties.getTemplateId())) {
             log.error("[SMS] 腾讯云短信配置不完整");
-            return false;
+            return null;
         }
 
         try {
@@ -54,20 +54,20 @@ public class TencentSmsSender implements SmsSender {
             SendStatus[] statuses = response == null ? null : response.getSendStatusSet();
             if (statuses == null || statuses.length == 0) {
                 log.error("[SMS] 腾讯云无发送结果 phone={}", mask(phone));
-                return false;
+                return null;
             }
             SendStatus status = statuses[0];
             boolean success = "Ok".equalsIgnoreCase(status.getCode());
             if (success) {
                 log.info("[SMS] 腾讯云发送成功 phone={} serialNo={}", mask(phone), status.getSerialNo());
-            } else {
-                log.error("[SMS] 腾讯云发送失败 phone={} code={} message={}",
-                        mask(phone), status.getCode(), status.getMessage());
+                return code;
             }
-            return success;
+            log.error("[SMS] 腾讯云发送失败 phone={} code={} message={}",
+                    mask(phone), status.getCode(), status.getMessage());
+            return null;
         } catch (Exception e) {
             log.error("[SMS] 腾讯云发送异常 phone={} error={}", mask(phone), e.getMessage(), e);
-            return false;
+            return null;
         }
     }
 

@@ -72,22 +72,22 @@ public class SmsCodeService {
         }
 
         String code = String.format("%06d", RANDOM.nextInt(1000000));
-        boolean delivered;
+        String deliveredCode;
         if (properties.isEnabled()) {
-            delivered = smsSender.send(p, code);
+            deliveredCode = smsSender.send(p, code);
+        } else if (properties.isDevReturnCode()) {
+            deliveredCode = code;
         } else {
-            delivered = properties.isDevReturnCode();
-            if (!delivered) {
-                log.error("[SMS] 真实短信未开启且不允许开发验证码，拒绝发送 phone={}", mask(p));
-            }
+            deliveredCode = null;
+            log.error("[SMS] 真实短信未开启且不允许开发验证码，拒绝发送 phone={}", mask(p));
         }
-        if (!delivered) {
+        if (deliveredCode == null || deliveredCode.trim().isEmpty()) {
             redisTemplate.delete(throttleKey);
             redisTemplate.opsForValue().decrement(dailyKey);
             return null;
         }
 
-        redisTemplate.opsForValue().set(codeKey(s, p), code, Duration.ofSeconds(properties.getCodeTtlSeconds()));
+        redisTemplate.opsForValue().set(codeKey(s, p), deliveredCode, Duration.ofSeconds(properties.getCodeTtlSeconds()));
         redisTemplate.delete(attemptKey(s, p));
 
         Map<String, Object> result = new LinkedHashMap<String, Object>();
@@ -95,7 +95,7 @@ public class SmsCodeService {
         result.put("scene", s);
         result.put("expiresIn", properties.getCodeTtlSeconds());
         if (!properties.isEnabled() && properties.isDevReturnCode()) {
-            result.put("devCode", code);
+            result.put("devCode", deliveredCode);
         }
         log.info("[SMS] 验证码发送完成 phone={} scene={} provider={}",
                 mask(p), s, properties.isEnabled() ? "tencent" : "dev");

@@ -31,7 +31,7 @@ class SmsCodeServiceTest {
         SmsProperties properties = new SmsProperties();
         properties.setEnabled(false);
         properties.setDevReturnCode(true);
-        SmsCodeService service = new SmsCodeService(redis, properties, (phone, code) -> false);
+        SmsCodeService service = new SmsCodeService(redis, properties, (phone, code) -> null);
 
         Map<String, Object> result = service.sendCode("13800138000", "login");
 

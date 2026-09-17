@@ -67,7 +67,7 @@
           <el-tabs v-model="loginMode" class="login-tabs">
             <el-tab-pane label="账号登录" name="password" />
             <el-tab-pane name="captcha">
-              <template #label>邮箱验证码</template>
+              <template #label>验证码登录</template>
             </el-tab-pane>
           </el-tabs>
 
@@ -92,11 +92,11 @@
               />
             </template>
 
-            <!-- 手机邮箱验证码：与账号登录同构——两行通栏输入框，发送按钮内联在验证码框右侧 -->
+            <!-- 手机验证码登录：与账号登录同构——两行通栏输入框，发送按钮内联在验证码框右侧 -->
             <template v-else>
               <el-input
-                v-model="form.email"
-                placeholder="请输入邮箱"
+                v-model="form.phone"
+                placeholder="请输入手机号"
                 size="large"
                 autocomplete="off"
                 class="field-input"
@@ -149,8 +149,8 @@
     <!-- ================= 忘记密码 ================= -->
     <el-dialog v-model="forgotVisible" title="找回密码" width="420px" class="auth-dialog" destroy-on-close>
       <el-form label-position="top" class="auth-dform">
-        <el-form-item label="邮箱">
-          <el-input v-model="forgot.email" placeholder="请输入注册邮箱" size="large" autocomplete="off">
+        <el-form-item label="手机号">
+          <el-input v-model="forgot.phone" placeholder="请输入注册手机号" size="large" autocomplete="off">
             <template #suffix>
               <span
                 class="code-link"
@@ -164,7 +164,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="验证码">
-          <el-input v-model="forgot.code" placeholder="请输入验证码" size="large" autocomplete="off" />
+          <el-input v-model="forgot.code" placeholder="请输入短信验证码" size="large" autocomplete="off" />
         </el-form-item>
         <el-form-item label="新密码">
           <el-input v-model="forgot.pwd" placeholder="6-64 位新密码" type="password" show-password size="large" autocomplete="new-password" />
@@ -182,8 +182,8 @@
     <!-- ================= 注册账号 ================= -->
     <el-dialog v-model="registerVisible" title="注册账号" width="420px" class="auth-dialog" destroy-on-close>
       <el-form label-position="top" class="auth-dform">
-        <el-form-item label="邮箱（即登录用户名）">
-          <el-input v-model="reg.email" placeholder="请输入邮箱" size="large" autocomplete="off">
+        <el-form-item label="手机号（即登录用户名）">
+          <el-input v-model="reg.phone" placeholder="请输入手机号" size="large" autocomplete="off">
             <template #suffix>
               <span
                 class="code-link"
@@ -197,10 +197,10 @@
           </el-input>
         </el-form-item>
         <el-form-item label="验证码">
-          <el-input v-model="reg.code" placeholder="请输入验证码" size="large" autocomplete="off" />
+          <el-input v-model="reg.code" placeholder="请输入短信验证码" size="large" autocomplete="off" />
         </el-form-item>
         <el-form-item label="昵称（选填）">
-          <el-input v-model="reg.nickname" placeholder="展示名称，默认为邮箱" size="large" autocomplete="off" />
+          <el-input v-model="reg.nickname" placeholder="展示名称，默认为手机号" size="large" autocomplete="off" />
         </el-form-item>
         <el-form-item label="设置密码">
           <el-input v-model="reg.pwd" placeholder="6-64 位密码" type="password" show-password size="large" autocomplete="new-password" />
@@ -232,14 +232,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, myPermissions, emailSend, emailLogin, emailRegister, emailReset } from '../api'
+import { login, myPermissions, smsSend, smsLogin, smsRegister, smsReset } from '../api'
 import LogoMark from '../components/LogoMark.vue'
 import { useAuthStore } from '../store/auth'
 import { landingFor } from '../utils/menu'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const form = ref({ username: '', password: '', email: '', captcha: '' })
+const form = ref({ username: '', password: '', phone: '', captcha: '' })
 const remember = ref(true)
 const loading = ref(false)
 const loginMode = ref('password')
@@ -250,8 +250,8 @@ let timer = null
 const forgotVisible = ref(false)
 const registerVisible = ref(false)
 const helpVisible = ref(false)
-const forgot = ref({ email: '', code: '', pwd: '', pwd2: '' })
-const reg = ref({ email: '', code: '', nickname: '', pwd: '', pwd2: '' })
+const forgot = ref({ phone: '', code: '', pwd: '', pwd2: '' })
+const reg = ref({ phone: '', code: '', nickname: '', pwd: '', pwd2: '' })
 const forgotCd = ref(0)
 const regCd = ref(0)
 let forgotTimer = null
@@ -260,21 +260,21 @@ const forgotLoading = ref(false)
 const regLoading = ref(false)
 
 const faqs = [
-  { q: '忘记登录密码怎么办？', a: '点击“忘记密码？”，输入注册邮箱并获取验证码，即可设置新密码。' },
-  { q: '如何注册账号？', a: '点击“注册账号”，用邮箱获取验证码并设置密码即可完成；用户名即为邮箱。' },
-  { q: '支持哪几种登录方式？', a: '支持用户名密码登录与邮箱验证码。勾选“记住我”可在本次登录后保持在线。' },
+  { q: '忘记登录密码怎么办？', a: '点击“忘记密码？”，输入注册手机号并获取验证码，即可设置新密码。' },
+  { q: '如何注册账号？', a: '点击“注册账号”，用手机号获取验证码并设置密码即可完成；用户名即为手机号。' },
+  { q: '支持哪几种登录方式？', a: '支持用户名密码登录与手机号验证码登录。勾选“记住我”可在本次登录后保持在线。' },
   { q: '登录后看不到部分菜单怎么办？', a: '菜单按账号角色展示。如确有权限需要，请联系系统管理员调整角色。' }
 ]
 
-const isEmail = (p) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p)
+const isPhone = (p) => /^1\d{10}$/.test(p)
 const isPwd = (p) => p && p.length >= 6 && p.length <= 64
 
 function openForgot() {
-  forgot.value = { email: form.value.email || '', code: '', pwd: '', pwd2: '' }
+  forgot.value = { phone: form.value.phone || '', code: '', pwd: '', pwd2: '' }
   forgotVisible.value = true
 }
 function openRegister() {
-  reg.value = { email: '', code: '', nickname: '', pwd: '', pwd2: '' }
+  reg.value = { phone: '', code: '', nickname: '', pwd: '', pwd2: '' }
   registerVisible.value = true
 }
 function openHelp() { helpVisible.value = true }
@@ -282,12 +282,12 @@ function openHelp() { helpVisible.value = true }
 // 主登录：验证码发送
 async function sendCaptcha() {
   if (countdown.value > 0) return
-  if (!isEmail(form.value.email)) {
-    ElMessage.warning('请输入正确的邮箱')
+  if (!isPhone(form.value.phone)) {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   try {
-    await emailSend(form.value.email, 'login')
+    await smsSend(form.value.phone, 'login')
     ElMessage.success('验证码已发送，请查收')
     countdown.value = 60
     if (timer) clearInterval(timer)
@@ -298,15 +298,15 @@ async function sendCaptcha() {
   } catch (e) { /* 错误已由拦截器提示 */ }
 }
 
-// 找回密码：发送验证码（场景 login，须邮箱已注册）
+// 找回密码：发送验证码（场景 login，须手机号已注册）
 async function sendForgotCode() {
   if (forgotCd.value > 0) return
-  if (!isEmail(forgot.value.email)) {
-    ElMessage.warning('请输入正确的邮箱')
+  if (!isPhone(forgot.value.phone)) {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   try {
-    await emailSend(forgot.value.email, 'login')
+    await smsSend(forgot.value.phone, 'login')
     ElMessage.success('验证码已发送，请查收')
     forgotCd.value = 60
     if (forgotTimer) clearInterval(forgotTimer)
@@ -317,15 +317,15 @@ async function sendForgotCode() {
   } catch (e) { /* 错误已由拦截器提示 */ }
 }
 
-// 注册：发送验证码（场景 register，须邮箱未注册）
+// 注册：发送验证码（场景 register，须手机号未注册）
 async function sendRegisterCode() {
   if (regCd.value > 0) return
-  if (!isEmail(reg.value.email)) {
-    ElMessage.warning('请输入正确的邮箱')
+  if (!isPhone(reg.value.phone)) {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   try {
-    await emailSend(reg.value.email, 'register')
+    await smsSend(reg.value.phone, 'register')
     ElMessage.success('验证码已发送，请查收')
     regCd.value = 60
     if (regTimer) clearInterval(regTimer)
@@ -337,13 +337,13 @@ async function sendRegisterCode() {
 }
 
 async function submitForgot() {
-  if (!isEmail(forgot.value.email)) return ElMessage.warning('请输入正确的邮箱')
+  if (!isPhone(forgot.value.phone)) return ElMessage.warning('请输入正确的手机号')
   if (!forgot.value.code) return ElMessage.warning('请输入验证码')
   if (!isPwd(forgot.value.pwd)) return ElMessage.warning('新密码至少 6 位')
   if (forgot.value.pwd !== forgot.value.pwd2) return ElMessage.warning('两次输入的密码不一致')
   forgotLoading.value = true
   try {
-    await emailReset(forgot.value.email, forgot.value.code, forgot.value.pwd)
+    await smsReset(forgot.value.phone, forgot.value.code, forgot.value.pwd)
     ElMessage.success('密码已重置，请使用新密码登录')
     forgotVisible.value = false
   } catch (e) { /* 错误已由拦截器提示 */ } finally {
@@ -352,16 +352,16 @@ async function submitForgot() {
 }
 
 async function submitRegister() {
-  if (!isEmail(reg.value.email)) return ElMessage.warning('请输入正确的邮箱')
+  if (!isPhone(reg.value.phone)) return ElMessage.warning('请输入正确的手机号')
   if (!reg.value.code) return ElMessage.warning('请输入验证码')
   if (!isPwd(reg.value.pwd)) return ElMessage.warning('密码至少 6 位')
   if (reg.value.pwd !== reg.value.pwd2) return ElMessage.warning('两次输入的密码不一致')
   regLoading.value = true
   try {
-    await emailRegister(reg.value.email, reg.value.code, reg.value.pwd, reg.value.nickname.trim())
-    ElMessage.success('注册成功，请使用邮箱密码登录')
+    await smsRegister(reg.value.phone, reg.value.code, reg.value.pwd, reg.value.nickname.trim())
+    ElMessage.success('注册成功，请使用手机号密码登录')
     registerVisible.value = false
-    form.value.username = reg.value.email
+    form.value.username = reg.value.phone
     form.value.password = ''
     loginMode.value = 'password'
   } catch (e) { /* 错误已由拦截器提示 */ } finally {
@@ -383,13 +383,13 @@ async function afterAuth(data) {
 
 async function handleLogin() {
   if (loginMode.value === 'captcha') {
-    if (!isEmail(form.value.email) || !form.value.captcha) {
-      ElMessage.warning('请输入邮箱和验证码')
+    if (!isPhone(form.value.phone) || !form.value.captcha) {
+      ElMessage.warning('请输入手机号和验证码')
       return
     }
     loading.value = true
     try {
-      const data = await emailLogin(form.value.email, form.value.captcha, remember.value)
+      const data = await smsLogin(form.value.phone, form.value.captcha, remember.value)
       await afterAuth(data)
     } catch (e) { /* 错误已由拦截器提示 */ } finally { loading.value = false }
     return
