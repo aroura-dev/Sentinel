@@ -13,6 +13,16 @@ export const smsLogin = (phone, code, remember = false) =>
 // 注册：手机验证码 + 设密码（username=phone，默认角色由后端配置）；重置：验证码 + 新密码
 export const smsRegister = (phone, code, password, nickname = '') =>
   request.post('/auth/sms/register', null, { params: { phone, code, password, nickname } })
+// 邮箱验证码：scene=login(须已注册)/register(须未注册)/reset
+export const emailSend = (email, scene = 'login') =>
+  request.post('/auth/email/send', null, { params: { email, scene } })
+export const emailLogin = (email, code, remember = false) =>
+  request.post('/auth/email/login', null, { params: { email, code, remember } })
+export const emailRegister = (email, code, password, nickname = '') =>
+  request.post('/auth/email/register', null, { params: { email, code, password, nickname } })
+export const emailReset = (email, code, newPassword) =>
+  request.post('/auth/email/reset', null, { params: { email, code, newPassword } })
+
 export const smsReset = (phone, code, newPassword) =>
   request.post('/auth/sms/reset', null, { params: { phone, code, newPassword } })
 

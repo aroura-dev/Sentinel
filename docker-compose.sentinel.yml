@@ -92,7 +92,7 @@ services:
       start_period: 60s
 
   frontend:
-    build: ./sentinel-frontend
+    build: ./microservices/frontend-vue
     container_name: sentinel-frontend
     restart: unless-stopped
     depends_on:
