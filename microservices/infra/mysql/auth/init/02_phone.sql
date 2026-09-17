@@ -2,10 +2,10 @@
 USE sentinel_auth;
 ALTER TABLE sentinel_user ADD COLUMN phone VARCHAR(20) NULL COMMENT '手机号(验证码登录)' AFTER username;
 UPDATE sentinel_user SET phone = CASE username
-  WHEN 'zhangwei'    THEN '13800000001'
-  WHEN 'liuyang' THEN '13800000002'
-  WHEN 'wangfang'       THEN '13800000003'
-  WHEN 'chenhao' THEN '13800000004'
-  WHEN 'zhaomin'  THEN '13800000005'
+  WHEN '张伟'    THEN '13800000001'
+  WHEN '刘洋' THEN '13800000002'
+  WHEN '王芳'       THEN '13800000003'
+  WHEN '陈浩' THEN '13800000004'
+  WHEN '赵敏'  THEN '13800000005'
   ELSE NULL END
-WHERE username IN ('zhangwei','liuyang','wangfang','chenhao','zhaomin');
+WHERE username IN ('张伟','刘洋','王芳','陈浩','赵敏');

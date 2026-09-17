@@ -10,9 +10,9 @@ describe('auth store（RBAC 会话）', () => {
 
   it('setAuth 持久化 token/username/role/nickname', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'zhangwei', 'ADMIN', '张伟')
+    store.setAuth('token-1', '张伟', 'ADMIN', '张伟')
     expect(store.token).toBe('token-1')
-    expect(store.username).toBe('zhangwei')
+    expect(store.username).toBe('张伟')
     expect(store.role).toBe('ADMIN')
     expect(localStorage.getItem('sentinel_token')).toBe('token-1')
     expect(localStorage.getItem('sentinel_role')).toBe('ADMIN')
@@ -27,7 +27,7 @@ describe('auth store（RBAC 会话）', () => {
 
   it('logout 清空所有会话 key', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'zhangwei', 'ADMIN')
+    store.setAuth('token-1', '张伟', 'ADMIN')
     store.logout()
     expect(store.token).toBe('')
     expect(store.role).toBe('')

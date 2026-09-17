@@ -26,7 +26,7 @@ public class UserService {
     private static final String STATUS_DISABLED = "0";
     private static final Set<String> ROLE_CODES = new HashSet<>(Arrays.asList(
             "ADMIN", "OPERATOR", "CUSTOMER_SERVICE", "MERCHANT", "FINANCE"));
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9._-]{2,31}$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[\\p{IsHan}A-Za-z][\\p{IsHan}A-Za-z0-9._-]{1,31}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
@@ -53,7 +53,7 @@ public class UserService {
                                       String phone, String email, String role, String status) {
         String normalizedUsername = required(username, "用户名不能为空").trim();
         if (!USERNAME_PATTERN.matcher(normalizedUsername).matches()) {
-            throw new CommonException("用户名需以字母开头，仅支持字母、数字、点号、下划线和短横线，长度 3-32 位");
+            throw new CommonException("用户名需以中文或字母开头，支持中文、字母、数字、点号、下划线和短横线，长度 2-32 位");
         }
         String normalizedPassword = password == null ? "" : password;
         if (normalizedPassword.length() < 6 || normalizedPassword.length() > 64) {

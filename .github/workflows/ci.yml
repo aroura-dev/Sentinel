@@ -98,7 +98,7 @@ jobs:
           exit 1
       - name: Verify administrator login
         run: |
-          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login?username=zhangwei&password=Admin%40123')
+          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login?username=张伟&password=Admin%40123')
           echo "$response"
           echo "$response" | grep -q '"status":"0"'
       - name: Show container logs

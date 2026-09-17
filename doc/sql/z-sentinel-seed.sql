@@ -10,10 +10,10 @@ USE `sentinel`;
 -- 1. RBAC 账号（bcrypt 哈希；明文见 README「账号」表）
 -- -----------------------------------------------------------
 INSERT INTO `sentinel_user` (`username`, `password`, `nickname`, `role`) VALUES
-('zhangwei',    '$2b$10$zMgQzt/OgPHd7qZHdqb.LOo8yvm9ePV7nlNlvN1EWGwaZxvA.RkHu', '张伟', 'ADMIN'),
-('liuyang', '$2b$10$bEjPnY/h/XVMiaxzMCIoAe2hHyYeRzlkAdHv9FM2neZzN2lXa8Yu2', '刘洋', 'OPERATOR'),
-('wangfang',       '$2b$10$Zs8/cCH2E6BBlmqKEcJ1vOm6Vkx8Kk89ufWSlzcY2U12vPE47V0XS', '王芳', 'CUSTOMER_SERVICE'),
-('chenhao', '$2b$10$EFnvExNqe0eMYHay4Ym1RuS9xwcwhCBSd73OJJARy6bzbPJjJrENC', '陈浩', 'MERCHANT')
+('张伟',    '$2b$10$zMgQzt/OgPHd7qZHdqb.LOo8yvm9ePV7nlNlvN1EWGwaZxvA.RkHu', '张伟', 'ADMIN'),
+('刘洋', '$2b$10$bEjPnY/h/XVMiaxzMCIoAe2hHyYeRzlkAdHv9FM2neZzN2lXa8Yu2', '刘洋', 'OPERATOR'),
+('王芳',       '$2b$10$Zs8/cCH2E6BBlmqKEcJ1vOm6Vkx8Kk89ufWSlzcY2U12vPE47V0XS', '王芳', 'CUSTOMER_SERVICE'),
+('陈浩', '$2b$10$EFnvExNqe0eMYHay4Ym1RuS9xwcwhCBSd73OJJARy6bzbPJjJrENC', '陈浩', 'MERCHANT')
 ON DUPLICATE KEY UPDATE `nickname` = VALUES(`nickname`), `role` = VALUES(`role`), `status` = 1;
 
 -- -----------------------------------------------------------

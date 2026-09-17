@@ -5,6 +5,7 @@ export const login = (username, password, remember = false) =>
   request.post('/auth/login', null, { params: { username, password, remember } })
 export const logout = () => request.post('/auth/logout')
 export const me = () => request.get('/auth/me')
+export const updateAvatar = (data) => request.post('/auth/avatar', data)
 // 手机验证码：scene=login(须已注册)/register(须未注册)；remember 决定长效会话
 export const smsSend = (phone, scene = 'login') =>
   request.post('/auth/sms/send', null, { params: { phone, scene } })

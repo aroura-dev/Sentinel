@@ -85,7 +85,7 @@ bash infra/tools/down.sh
 | 管理控制台 | http://localhost:5175 | 经 Gateway 访问后端 |
 | SMS Stub | http://localhost:18999 | 本地渠道桩 |
 
-默认账号：`zhangwei / Admin@123`。
+默认账号：`张伟 / Admin@123`。
 
 ## 系统架构
 
@@ -196,7 +196,7 @@ bash infra/tools/smoke_closed_loop.sh
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
-  -d "username=zhangwei&password=Admin@123" \
+  -d "username=张伟&password=Admin@123" \
   | grep -oE '"token":"[a-f0-9]+"' | cut -d'"' -f4)
 
 curl -s -X POST \

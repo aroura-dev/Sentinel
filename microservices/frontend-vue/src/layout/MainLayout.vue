@@ -107,11 +107,33 @@
             </div>
           </el-popover>
           <div class="header-user">
-            <el-tooltip :content="userTip" placement="bottom" popper-class="header-tip">
-              <el-avatar :size="30" class="header-avatar" :src="authStore.avatar || undefined" :style="authStore.avatar ? {} : avatarStyle">
-                <span v-if="!authStore.avatar">{{ avatarText }}</span>
-              </el-avatar>
-            </el-tooltip>
+            <el-popover placement="bottom-end" :width="236" trigger="click" popper-class="user-panel-popover">
+              <template #reference>
+                <el-avatar :size="30" class="header-avatar" :src="authStore.avatar || undefined" :style="authStore.avatar ? {} : avatarStyle">
+                  <span v-if="!authStore.avatar">{{ avatarText }}</span>
+                </el-avatar>
+              </template>
+              <div class="user-panel">
+                <div class="user-panel-main">
+                  <el-avatar :size="42" class="user-panel-avatar" :src="authStore.avatar || undefined" :style="authStore.avatar ? {} : avatarStyle">
+                    <span v-if="!authStore.avatar">{{ avatarText }}</span>
+                  </el-avatar>
+                  <div class="user-panel-meta">
+                    <div class="user-panel-name">{{ displayName }}</div>
+                    <el-tag size="small" effect="light" class="user-panel-role">{{ roleLabel }}</el-tag>
+                  </div>
+                </div>
+                <div class="user-panel-divider"></div>
+                <el-upload
+                  :auto-upload="false"
+                  :show-file-list="false"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  :on-change="onAvatarChange"
+                >
+                  <el-button type="primary" plain size="small" class="user-panel-upload">更换头像</el-button>
+                </el-upload>
+              </div>
+            </el-popover>
             <el-tooltip content="退出登录" placement="bottom" popper-class="header-tip">
               <button class="icon-btn" type="button" aria-label="退出登录" @click="handleLogout">
                 <el-icon :size="18"><SwitchButton /></el-icon>
@@ -153,9 +175,9 @@
 <script setup>
 import { computed, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../store/auth'
-import { logout, globalSearch, notifList, myPermissions, me } from '../api'
+import { logout, globalSearch, notifList, myPermissions, me, updateAvatar } from '../api'
 import { MENU, ROLES, visibleMenu, filterMenuByPaths, moduleOfPath } from '../utils/menu'
 import LogoMark from '../components/LogoMark.vue'
 import ModuleStats from '../components/ModuleStats.vue'
@@ -236,6 +258,27 @@ function nodeLabel(node) {
 function statusType(s) { return { SENT: 'success', FAILED: 'danger', PENDING: 'warning' }[s] || 'info' }
 
 watch(() => route.path, () => { loadNotifs() })
+async function onAvatarChange(uploadFile) {
+  const file = uploadFile && uploadFile.raw
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+    ElMessage.warning('仅支持 JPG、PNG、GIF、WebP 图片')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('头像大小不能超过 2MB')
+    return
+  }
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    const res = await updateAvatar(form)
+    authStore.setAvatar(res && res.avatar)
+    ElMessage.success('头像已更新')
+  } catch (e) {
+    // 请求拦截器已提示错误
+  }
+}
 async function syncProfile() {
   try {
     const user = await me()
@@ -295,10 +338,23 @@ const ROLE_LABELS = {
   [ROLES.FINANCE]: '财务'
 }
 const roleLabel = computed(() => ROLE_LABELS[authStore.role] || authStore.role)
+const DISPLAY_NAMES = {
+  admin: '张伟', zhangwei: '张伟',
+  operator: '刘洋', liuyang: '刘洋',
+  cs: '王芳', wangfang: '王芳',
+  merchant: '陈浩', chenhao: '陈浩',
+  finance: '赵敏', zhaomin: '赵敏'
+}
+const isPhoneLike = (value) => /^1[3-9]\d{9}$/.test(String(value || '').trim())
+const displayName = computed(() => {
+  const nickname = String(authStore.nickname || '').trim()
+  if (nickname && !isPhoneLike(nickname)) return nickname
+  return DISPLAY_NAMES[authStore.username] || roleLabel.value || '用户'
+})
 // 用户图标悬停提示：只显示一个（昵称优先，回退用户名）
-const userTip = computed(() => authStore.nickname || authStore.username || '')
+const userTip = computed(() => displayName.value)
 const avatarText = computed(() => {
-  const name = authStore.nickname || authStore.username || '用户'
+  const name = displayName.value
   return name.slice(0, 2).toUpperCase()
 })
 const avatarStyle = computed(() => {
@@ -574,6 +630,48 @@ async function handleLogout() {
 .header-avatar:hover {
   transform: translateY(-1px);
   box-shadow: 0 3px 9px rgba(16, 24, 40, 0.18);
+}
+.user-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 0;
+}
+.user-panel-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-panel-avatar {
+  flex: none;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.14);
+}
+.user-panel-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.user-panel-name {
+  max-width: 150px;
+  overflow: hidden;
+  color: #1d2129;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-panel-role {
+  margin: 0;
+}
+.user-panel-divider {
+  height: 1px;
+  background: #eef1f4;
+}
+.user-panel-upload {
+  width: 100%;
 }
 .header-user {
   display: flex;

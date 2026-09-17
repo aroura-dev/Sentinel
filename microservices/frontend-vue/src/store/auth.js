@@ -38,7 +38,7 @@ export const useAuthStore = defineStore('auth', {
       if (username) this.username = username
       if (role) this.role = role
       if (nickname) this.nickname = nickname
-      if (avatar !== undefined) this.avatar = avatar || ''
+      if (avatar) this.avatar = avatar;
       persistProfile(this)
     },
     setAvatar(avatar) {

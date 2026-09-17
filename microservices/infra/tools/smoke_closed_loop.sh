@@ -24,8 +24,8 @@ dbq() {
   fi
 }
 
-echo "== 1) 经网关登录 zhangwei =="
-TOKEN=$(curl -s -X POST "$GW/api/auth/login" -d "username=zhangwei&password=Admin@123" \
+echo "== 1) 经网关登录 张伟 =="
+TOKEN=$(curl -s -X POST "$GW/api/auth/login" -d "username=张伟&password=Admin@123" \
         | grep -oE '"token":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
 [ -n "$TOKEN" ] && echo "   token=${TOKEN:0:12}..." || { echo "   登录失败"; exit 1; }
 

@@ -47,14 +47,14 @@ class RoleInterceptorTest {
 
     @Test
     void adminToken_canAccessProtectedEndpoint() throws Exception {
-        mockMvc("zhangwei:ADMIN")
+        mockMvc("张伟:ADMIN")
                 .perform(get("/api/protected").header("Authorization", "Bearer tok"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void merchantToken_forbiddenOnAdminOnlyEndpoint() throws Exception {
-        mockMvc("chenhao:MERCHANT")
+        mockMvc("陈浩:MERCHANT")
                 .perform(get("/api/protected").header("Authorization", "Bearer tok"))
                 .andExpect(status().isForbidden());
     }

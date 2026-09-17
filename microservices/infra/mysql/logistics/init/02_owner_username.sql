@@ -9,4 +9,4 @@ ALTER TABLE merchant ADD COLUMN owner_username VARCHAR(64) NULL COMMENT '商户�
 UPDATE merchant SET owner_username = '' WHERE id = 2 AND (owner_username IS NULL OR owner_username = '');
 UPDATE merchant SET owner_username = '' WHERE id = 3 AND (owner_username IS NULL OR owner_username = '');
 UPDATE merchant SET owner_username = '' WHERE id = 4 AND (owner_username IS NULL OR owner_username = '');
-UPDATE merchant SET owner_username = 'chenhao' WHERE id = 1 AND (owner_username IS NULL OR owner_username = '');
+UPDATE merchant SET owner_username = '陈浩' WHERE id = 1 AND (owner_username IS NULL OR owner_username = '');

@@ -79,7 +79,7 @@ trap cleanup INT TERM EXIT
 
 echo ""
 echo "============================================="
-echo "  前端管理端: http://127.0.0.1:5173  (zhangwei/Admin@123)"
+echo "  前端管理端: http://127.0.0.1:5173  (张伟/Admin@123)"
 echo "  后端 API  : http://127.0.0.1:8080"
 echo "  Swagger   : http://127.0.0.1:8080/swagger-ui/index.html"
 echo "  按 Ctrl+C 停止后端和前端"

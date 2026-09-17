@@ -67,7 +67,7 @@
   <el-dialog v-model="dialogVisible" :title="editId ? '编辑用户' : '新增用户'" width="560px">
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="96px" label-position="left">
       <el-form-item label="用户名" prop="username">
-        <el-input v-model="form.username" :disabled="!!editId" placeholder="字母开头，3-32 位" maxlength="32" style="width: 100%" />
+        <el-input v-model="form.username" :disabled="!!editId" placeholder="中文姓名或字母账号，2-32 位" maxlength="32" style="width: 100%" />
       </el-form-item>
       <el-form-item v-if="!editId" label="密码" prop="password">
         <el-input v-model="form.password" type="password" show-password placeholder="6-64 位" maxlength="64" style="width: 100%" />
@@ -172,7 +172,7 @@ async function loadUsers(params) {
 }
 const columns = [
   { prop: 'avatar', label: '头像', width: 68, align: 'center' },
-  { prop: 'nickname', label: '用户名', minWidth: 130 },
+  { prop: 'username', label: '用户名', minWidth: 130 },
   { prop: 'phone', label: '手机号', minWidth: 135 },
   { prop: 'email', label: '邮箱', minWidth: 190 },
   { prop: 'role', label: '角色', width: 105 },
@@ -193,7 +193,7 @@ const validateEmail = (rule, value, callback) => {
 const formRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { pattern: /^[A-Za-z][A-Za-z0-9._-]{2,31}$/, message: '需字母开头，仅支持字母、数字、点号、下划线和短横线', trigger: 'blur' }
+    { pattern: /^[\p{Script=Han}A-Za-z][\p{Script=Han}A-Za-z0-9._-]{1,31}$/u, message: '需中文或字母开头，支持中文、字母、数字、点号、下划线和短横线', trigger: 'blur' }
   ],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 6, max: 64, message: '密码长度需为 6-64 位', trigger: 'blur' }],
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }, { min: 2, max: 32, message: '昵称长度需为 2-32 位', trigger: 'blur' }],

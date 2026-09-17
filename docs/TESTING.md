@@ -90,7 +90,7 @@ SMOKE_DOCKER=1 bash infra/tools/smoke_closed_loop.sh
 
 Smoke 实际执行：
 
-1. 经 Gateway 登录 `zhangwei / Admin@123` 获取 token。
+1. 经 Gateway 登录 `张伟 / Admin@123` 获取 token。
 2. 从 `sentinel_logistics` 选择无买家通知、手机号为数字格式的订单。
 3. 调用通知接口，最多重试 3 次以容忍容器重启后的消费就绪竞态。
 4. 断言：

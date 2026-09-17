@@ -66,21 +66,21 @@ class AuthServiceTest {
 
     @Test
     void loginSuccess_storesUsernameRoleAndReturnsVo() {
-        when(userDao.findByUsername("zhangwei")).thenReturn(user("zhangwei", "Admin@123", "ADMIN"));
+        when(userDao.findByUsername("张伟")).thenReturn(user("张伟", "Admin@123", "ADMIN"));
 
-        LoginResultVO vo = authService.login("zhangwei", "Admin@123");
+        LoginResultVO vo = authService.login("张伟", "Admin@123");
 
         assertNotNull(vo);
-        assertEquals("zhangwei", vo.getUsername());
+        assertEquals("张伟", vo.getUsername());
         assertEquals("ADMIN", vo.getRole());
         assertNotNull(vo.getToken());
-        verify(valueOps).set(eq(AuthService.TOKEN_PREFIX + vo.getToken()), eq("zhangwei:ADMIN"), any(Duration.class));
+        verify(valueOps).set(eq(AuthService.TOKEN_PREFIX + vo.getToken()), eq("张伟:ADMIN"), any(Duration.class));
     }
 
     @Test
     void loginWrongPassword_returnsNull() {
-        when(userDao.findByUsername("zhangwei")).thenReturn(user("zhangwei", "Admin@123", "ADMIN"));
-        assertNull(authService.login("zhangwei", "wrong-password"));
+        when(userDao.findByUsername("张伟")).thenReturn(user("张伟", "Admin@123", "ADMIN"));
+        assertNull(authService.login("张伟", "wrong-password"));
     }
 
     @Test
@@ -91,20 +91,20 @@ class AuthServiceTest {
 
     @Test
     void loginDisabledUser_returnsNull() {
-        Map<String, Object> user = user("wangfang", "Cs@123", "CUSTOMER_SERVICE");
+        Map<String, Object> user = user("王芳", "Cs@123", "CUSTOMER_SERVICE");
         user.put("status", 0);
-        when(userDao.findByUsername("wangfang")).thenReturn(user);
-        assertNull(authService.login("wangfang", "Cs@123"));
+        when(userDao.findByUsername("王芳")).thenReturn(user);
+        assertNull(authService.login("王芳", "Cs@123"));
     }
 
     @Test
     void me_parsesUsernameRoleFromSession() {
-        when(valueOps.get(AuthService.TOKEN_PREFIX + "token-abc")).thenReturn("liuyang:OPERATOR");
+        when(valueOps.get(AuthService.TOKEN_PREFIX + "token-abc")).thenReturn("刘洋:OPERATOR");
 
         CurrentUserVO me = authService.me("Bearer token-abc");
 
         assertNotNull(me);
-        assertEquals("liuyang", me.getUsername());
+        assertEquals("刘洋", me.getUsername());
         assertEquals("OPERATOR", me.getRole());
     }
 
