@@ -7,11 +7,11 @@
     </template>
     <template #cell-image_url="{ row }">
       <el-image
-        v-if="row.image_url"
-        :src="row.image_url"
+        v-if="row.image_url || productImage(row.sku)"
+        :src="row.image_url || productImage(row.sku)"
         fit="cover"
         style="width: 44px; height: 44px; border-radius: 6px; vertical-align: middle"
-        :preview-src-list="[row.image_url]"
+        :preview-src-list="[row.image_url || productImage(row.sku)]"
         preview-teleported
       />
       <span v-else style="color: #c0c4cc; font-size: 12px">无图</span>
@@ -63,6 +63,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import DataTable from '../../components/DataTable.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import { productList, productSave, productUpdate, productDelete, merchantAll } from '../../api'
+import { productImage } from '../../utils/productImage'
 
 const columns = [
   { prop: 'image_url', label: '图片', width: 76 },

@@ -23,6 +23,8 @@ sentinel_scripts=(
   "20260911-fix-sentinel-user-nickname.sql"
   "z-sentinel-tms-seed.sql"
   "20260917-seed-user-avatars.sql"
+  "20260917-fill-user-contacts.sql"
+  "20260917-fill-real-business-data.sql"
   "z-sentinel-order-migrate.sql"
   "z-sentinel-real-data.sql"
   "zz-sentinel-after-sale.sql"

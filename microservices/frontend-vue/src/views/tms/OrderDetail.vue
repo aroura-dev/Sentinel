@@ -90,11 +90,11 @@
             <el-table-column label="图片" width="76">
               <template #default="{ row }">
                 <el-image
-                  v-if="imgMap[row.sku]"
-                  :src="imgMap[row.sku]"
+                  v-if="imgMap[row.sku] || productImage(row.sku)"
+                  :src="imgMap[row.sku] || productImage(row.sku)"
                   fit="cover"
                   style="width: 44px; height: 44px; border-radius: 6px; vertical-align: middle"
-                  :preview-src-list="[imgMap[row.sku]]"
+                  :preview-src-list="[imgMap[row.sku] || productImage(row.sku)]"
                   preview-teleported
                 />
                 <span v-else style="color: #c0c4cc; font-size: 12px">-</span>
@@ -295,6 +295,7 @@ import { tmsOrderDetail, tmsOrderTracks, waybillGenerate, tmsAdvance, tmsInjectA
 import { fmtDateTime } from '../../utils/format'
 import { ORIGIN, WAREHOUSE_COORDS, destCoord, nodeProgress, routePoint } from '../../utils/geo'
 import { countryLabel } from '../../utils/country'
+import { productImage } from '../../utils/productImage'
 import { useAuthStore } from '../../store/auth'
 
 const route = useRoute()
@@ -417,7 +418,7 @@ async function loadProducts() {
   try {
     const data = await productList({ page: 1, perPage: 100 })
     const m = {}
-    for (const p of (data.rows || [])) if (p.sku && p.image_url) m[p.sku] = p.image_url
+    for (const p of (data.rows || [])) if (p.sku && (p.image_url || productImage(p.sku))) m[p.sku] = p.image_url || productImage(p.sku)
     imgMap.value = m
   } catch { /* 图片加载失败忽略 */ }
 }

@@ -1,9 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#f4f2f0"/>
-  <rect x="74" y="46" width="52" height="108" rx="10" fill="#4a5a68"/>
-  <circle cx="100" cy="64" r="8" fill="#e8c65a"/>
-  <circle cx="100" cy="84" r="4" fill="#c9d4dc"/>
-  <circle cx="100" cy="102" r="4" fill="#c9d4dc"/>
-  <circle cx="100" cy="120" r="4" fill="#c9d4dc"/>
-  <circle cx="100" cy="138" r="7" fill="#a8bfd2"/>
-</svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#F43F5E'/><stop offset='1' stop-color='#BE123C'/></linearGradient></defs><rect width='160' height='160' rx='24' fill='url(#g)'/><circle cx='132' cy='25' r='38' fill='#fff' opacity='.10'/><path d="M59 57V43c0-13 9-23 21-23s21 10 21 23v14" fill="none" stroke="#FFE4E6" stroke-width="12" stroke-linecap="round"/><rect x="43" y="54" width="74" height="78" rx="15" fill="#FFF1F2"/><circle cx="80" cy="82" r="9" fill="#BE123C"/><path d="M80 94v18" stroke="#BE123C" stroke-width="7" stroke-linecap="round"/><circle cx="61" cy="81" r="4" fill="#FB7185"/><circle cx="99" cy="81" r="4" fill="#FB7185"/><text x='80' y='150' text-anchor='middle' fill='#fff' font-size='14' font-family='Microsoft YaHei,Arial,sans-serif' font-weight='600'>智能门锁</text></svg>

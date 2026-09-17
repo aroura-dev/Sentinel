@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#eef6f0"/>
-  <rect x="62" y="56" width="76" height="52" rx="22" fill="#3f5a4c"/>
-  <rect x="74" y="68" width="52" height="26" rx="10" fill="#5f7d6d"/>
-  <path d="M70 108 l8 40 h44 l8 -40 z" fill="#2f4a3d"/>
-  <path d="M78 148 v14 h44 v-14 z" fill="#5f7d6d"/>
-  <circle cx="88" cy="80" r="4" fill="#cfe6da"/>
-</svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#06B6D4'/><stop offset='1' stop-color='#0E7490'/></linearGradient></defs><rect width='160' height='160' rx='24' fill='url(#g)'/><circle cx='132' cy='25' r='38' fill='#fff' opacity='.10'/><path d="M42 83h56l20-19v49l-20-15H42z" fill="#ECFEFF"/><rect x="29" y="71" width="22" height="39" rx="10" fill="#A5F3FC"/><circle cx="83" cy="83" r="11" fill="#0E7490"/><text x='80' y='150' text-anchor='middle' fill='#fff' font-size='14' font-family='Microsoft YaHei,Arial,sans-serif' font-weight='600'>便携吸尘器</text></svg>

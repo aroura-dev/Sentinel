@@ -16,7 +16,9 @@ import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * 多角色登录认证服务。
@@ -31,6 +33,8 @@ public class AuthService {
 
     public static final String TOKEN_PREFIX = "sentinel:token:";
     public static final String SESSION_SEPARATOR = ":";
+
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[\\p{IsHan}A-Za-z][\\p{IsHan}A-Za-z0-9._-]{1,31}$");
 
     private final StringRedisTemplate redisTemplate;
     private final SentinelUserDao userDao;
@@ -55,8 +59,13 @@ public class AuthService {
         this.emailCodeService = emailCodeService;
     }
 
-    /** 用户名密码登录。 */
+    /** 用户名密码登录，默认短会话。 */
     public LoginResultVO login(String username, String password) {
+        return login(username, password, false);
+    }
+
+    /** 用户名密码登录，remember 控制长效会话。 */
+    public LoginResultVO login(String username, String password, boolean remember) {
         if (username == null || password == null || username.trim().isEmpty()) {
             return null;
         }
@@ -68,9 +77,8 @@ public class AuthService {
         if (stored == null || !passwordEncoder.matches(password, String.valueOf(stored))) {
             return null;
         }
-        return createSession(user, tokenTtlSeconds);
+        return createSession(user, remember ? rememberTtlSeconds : tokenTtlSeconds);
     }
-
     /** 发送手机验证码：login/reset 必须已注册，register 必须未注册。 */
     public Map<String, Object> sendSmsCode(String phone, String scene) {
         if (!SmsCodeService.isValidPhone(phone)) {
@@ -105,32 +113,35 @@ public class AuthService {
         return createSession(user, remember ? rememberTtlSeconds : tokenTtlSeconds);
     }
 
-    /** 手机验证码注册，默认用户名为手机号。 */
-    public Map<String, Object> registerByPhone(String phone, String code, String password, String nickname) {
+    /** 手机验证码注册，用户名与手机号分离。 */
+    public Map<String, Object> registerByPhone(String phone, String code, String username,
+                                               String password, String nickname) {
         if (!SmsCodeService.isValidPhone(phone) || !isValidPassword(password)) {
             return null;
         }
         String normalizedPhone = phone.trim();
-        if (userDao.findByPhone(normalizedPhone) != null) {
+        String normalizedUsername = username == null ? "" : username.trim();
+        if (!USERNAME_PATTERN.matcher(normalizedUsername).matches()
+                || userDao.findByPhone(normalizedPhone) != null
+                || userDao.existsByUsername(normalizedUsername)) {
             return null;
         }
         if (!smsCodeService.verifyCode(normalizedPhone, "register", code)) {
             return null;
         }
         String normalizedNickname = nickname == null || nickname.trim().isEmpty()
-                ? normalizedPhone : nickname.trim();
-        Long id = userDao.insert(normalizedPhone, normalizedPhone,
+                ? normalizedUsername : nickname.trim();
+        Long id = userDao.insert(normalizedUsername, normalizedPhone,
                 passwordEncoder.encode(password), normalizedNickname, registerDefaultRole, "1");
         if (id == null) {
             return null;
         }
         Map<String, Object> result = new HashMap<String, Object>();
-        result.put("username", normalizedPhone);
+        result.put("username", normalizedUsername);
         result.put("role", registerDefaultRole);
         result.put("nickname", normalizedNickname);
         return result;
     }
-
     /** 手机验证码重置密码。 */
     public boolean resetPasswordByPhone(String phone, String code, String newPassword) {
         if (!SmsCodeService.isValidPhone(phone) || !isValidPassword(newPassword)) {
@@ -147,6 +158,7 @@ public class AuthService {
         Object id = user.get("id");
         long uid = id instanceof Number ? ((Number) id).longValue() : Long.parseLong(String.valueOf(id));
         userDao.updatePassword(uid, passwordEncoder.encode(newPassword));
+        revokeSessions(String.valueOf(user.get("username")));
         log.info("[Auth] 手机号密码已重置 phone={}", normalizedPhone);
         return true;
     }
@@ -226,6 +238,7 @@ public class AuthService {
         Object id = user.get("id");
         long uid = id instanceof Number ? ((Number) id).longValue() : Long.parseLong(String.valueOf(id));
         userDao.updatePassword(uid, passwordEncoder.encode(newPassword));
+        revokeSessions(String.valueOf(user.get("username")));
         log.info("[Auth] 邮箱密码已重置 email={}", normalizedEmail);
         return true;
     }
@@ -262,6 +275,27 @@ public class AuthService {
         return attr instanceof CurrentUserVO ? (CurrentUserVO) attr : null;
     }
 
+    /** 重置密码后撤销该用户所有旧会话。 */
+    private void revokeSessions(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return;
+        }
+        try {
+            Set<String> keys = redisTemplate.keys(TOKEN_PREFIX + "*");
+            if (keys == null) {
+                return;
+            }
+            String prefix = username.trim() + SESSION_SEPARATOR;
+            for (String key : keys) {
+                String value = redisTemplate.opsForValue().get(key);
+                if (value != null && value.startsWith(prefix)) {
+                    redisTemplate.delete(key);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[Auth] 撤销旧会话失败 username={}", username, e);
+        }
+    }
     private LoginResultVO createSession(Map<String, Object> user, long ttlSeconds) {
         String username = String.valueOf(user.get("username"));
         String role = String.valueOf(user.get("role"));

@@ -39,8 +39,9 @@ public class AuthController {
 
     @PostMapping("/login")
     @ApiOperation("用户名密码登录")
-    public BasicResultVO login(@RequestParam String username, @RequestParam String password) {
-        LoginResultVO result = authService.login(username, password);
+    public BasicResultVO login(@RequestParam String username, @RequestParam String password,
+                              @RequestParam(value = "remember", required = false) Boolean remember) {
+        LoginResultVO result = authService.login(username, password, Boolean.TRUE.equals(remember));
         if (result == null) {
             return BasicResultVO.fail(RespStatusEnum.CLIENT_BAD_PARAMETERS, "用户名或密码错误");
         }
@@ -109,11 +110,13 @@ public class AuthController {
     @ApiOperation("手机验证码注册")
     public BasicResultVO smsRegister(@RequestParam String phone,
                                      @RequestParam String code,
+                                     @RequestParam String username,
                                      @RequestParam String password,
                                      @RequestParam(value = "nickname", required = false) String nickname) {
-        Map<String, Object> result = authService.registerByPhone(phone, code, password, nickname);
+        Map<String, Object> result = authService.registerByPhone(phone, code, username, password, nickname);
         if (result == null) {
-            return BasicResultVO.fail(RespStatusEnum.CLIENT_BAD_PARAMETERS, "注册失败：手机号已注册、验证码错误或密码不合法");
+            return BasicResultVO.fail(RespStatusEnum.CLIENT_BAD_PARAMETERS,
+                    "注册失败：手机号或用户名已注册、验证码错误、用户名不合法或密码不合法");
         }
         return BasicResultVO.success(result);
     }

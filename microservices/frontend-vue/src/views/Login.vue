@@ -133,7 +133,7 @@
 
           <!-- 低频辅助入口 -->
           <div class="bottom-help">
-            <span class="help" @click="openHelp"><el-icon><Service /></el-icon>在线客服</span>
+            <span class="help" @click="openSupport"><el-icon><Service /></el-icon>在线客服</span>
             <span class="sep">|</span>
             <span class="help" @click="openHelp">账号问题帮助</span>
             <span class="sep">|</span>
@@ -182,7 +182,10 @@
     <!-- ================= 注册账号 ================= -->
     <el-dialog v-model="registerVisible" title="注册账号" width="420px" class="auth-dialog" destroy-on-close>
       <el-form label-position="top" class="auth-dform">
-        <el-form-item label="手机号（即登录用户名）">
+        <el-form-item label="用户名（中文/字母，用于登录）">
+          <el-input v-model="reg.username" placeholder="如：张伟、wangfang" size="large" autocomplete="off" maxlength="32" />
+        </el-form-item>
+        <el-form-item label="手机号（用于验证码）">
           <el-input v-model="reg.phone" placeholder="请输入手机号" size="large" autocomplete="off">
             <template #suffix>
               <span
@@ -225,6 +228,21 @@
         <p class="help-admin">如问题仍未解决，请联系系统管理员协助处理。</p>
       </div>
     </el-dialog>
+
+    <!-- ================= 在线客服提示 ================= -->
+    <el-dialog v-model="supportVisible" title="在线客服" width="440px" class="auth-dialog">
+      <div class="help-faq">
+        <div class="faq">
+          <p class="faq-q">服务时间</p>
+          <p class="faq-a">工作日 09:00-18:00，非服务时段可先提交问题反馈。</p>
+        </div>
+        <div class="faq">
+          <p class="faq-q">登录后处理</p>
+          <p class="faq-a">登录系统后可使用“智能客服”提交物流异常、账号和业务问题。</p>
+        </div>
+        <p class="help-admin">如账号无法登录或需要紧急处理，请联系系统管理员协助。</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -250,8 +268,9 @@ let timer = null
 const forgotVisible = ref(false)
 const registerVisible = ref(false)
 const helpVisible = ref(false)
+const supportVisible = ref(false)
 const forgot = ref({ phone: '', code: '', pwd: '', pwd2: '' })
-const reg = ref({ phone: '', code: '', nickname: '', pwd: '', pwd2: '' })
+const reg = ref({ username: '', phone: '', code: '', nickname: '', pwd: '', pwd2: '' })
 const forgotCd = ref(0)
 const regCd = ref(0)
 let forgotTimer = null
@@ -261,23 +280,25 @@ const regLoading = ref(false)
 
 const faqs = [
   { q: '忘记登录密码怎么办？', a: '点击“忘记密码？”，输入注册手机号并获取验证码，即可设置新密码。' },
-  { q: '如何注册账号？', a: '点击“注册账号”，用手机号获取验证码并设置密码即可完成；用户名即为手机号。' },
+  { q: '如何注册账号？', a: '点击“注册账号”，用手机号获取验证码并设置密码即可完成；填写中文用户名；手机号用于验证码校验。' },
   { q: '支持哪几种登录方式？', a: '支持用户名密码登录与手机号验证码登录。勾选“记住我”可在本次登录后保持在线。' },
   { q: '登录后看不到部分菜单怎么办？', a: '菜单按账号角色展示。如确有权限需要，请联系系统管理员调整角色。' }
 ]
 
 const isPhone = (p) => /^1\d{10}$/.test(p)
 const isPwd = (p) => p && p.length >= 6 && p.length <= 64
+const isUsername = (u) => /^[\p{Script=Han}A-Za-z][\p{Script=Han}A-Za-z0-9._-]{1,31}$/u.test(String(u || '').trim())
 
 function openForgot() {
   forgot.value = { phone: form.value.phone || '', code: '', pwd: '', pwd2: '' }
   forgotVisible.value = true
 }
 function openRegister() {
-  reg.value = { phone: '', code: '', nickname: '', pwd: '', pwd2: '' }
+  reg.value = { username: '', phone: '', code: '', nickname: '', pwd: '', pwd2: '' }
   registerVisible.value = true
 }
 function openHelp() { helpVisible.value = true }
+function openSupport() { supportVisible.value = true }
 
 // 主登录：验证码发送
 async function sendCaptcha() {
@@ -298,7 +319,7 @@ async function sendCaptcha() {
   } catch (e) { /* 错误已由拦截器提示 */ }
 }
 
-// 找回密码：发送验证码（场景 login，须手机号已注册）
+// 找回密码：发送重置验证码（scene=reset，须手机号已注册）
 async function sendForgotCode() {
   if (forgotCd.value > 0) return
   if (!isPhone(forgot.value.phone)) {
@@ -306,7 +327,7 @@ async function sendForgotCode() {
     return
   }
   try {
-    await smsSend(forgot.value.phone, 'login')
+    await smsSend(forgot.value.phone, 'reset')
     ElMessage.success('验证码已发送，请查收')
     forgotCd.value = 60
     if (forgotTimer) clearInterval(forgotTimer)
@@ -352,23 +373,24 @@ async function submitForgot() {
 }
 
 async function submitRegister() {
+  const username = reg.value.username.trim()
+  if (!isUsername(username)) return ElMessage.warning('用户名需为中文或字母开头，长度 2-32 位')
   if (!isPhone(reg.value.phone)) return ElMessage.warning('请输入正确的手机号')
   if (!reg.value.code) return ElMessage.warning('请输入验证码')
   if (!isPwd(reg.value.pwd)) return ElMessage.warning('密码至少 6 位')
   if (reg.value.pwd !== reg.value.pwd2) return ElMessage.warning('两次输入的密码不一致')
   regLoading.value = true
   try {
-    await smsRegister(reg.value.phone, reg.value.code, reg.value.pwd, reg.value.nickname.trim())
-    ElMessage.success('注册成功，请使用手机号密码登录')
+    await smsRegister(reg.value.phone, reg.value.code, username, reg.value.pwd, reg.value.nickname.trim())
+    ElMessage.success('注册成功，请使用用户名密码登录')
     registerVisible.value = false
-    form.value.username = reg.value.phone
+    form.value.username = username
     form.value.password = ''
     loginMode.value = 'password'
   } catch (e) { /* 错误已由拦截器提示 */ } finally {
     regLoading.value = false
   }
 }
-
 async function afterAuth(data) {
   authStore.setAuth(data.token, data.username, data.role, data.nickname, remember.value, data.avatar)
   try {

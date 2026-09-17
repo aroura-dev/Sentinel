@@ -242,6 +242,7 @@ import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { fmtDateTime } from '../../utils/format'
 import { countryLabel } from '../../utils/country'
+import { productImage } from '../../utils/productImage'
 import { tmsOrderList, tmsOrderDetail, waybillGenerate, waybillList, waybillDetail,
   tmsChannelAll, logisticsNodes, merchantAll,
   tmsCancelOrder, tmsUpdateOrder, notifSend, tmsOrderCreate, productByMerchant, productList } from '../../api'
@@ -400,7 +401,7 @@ async function loadProductsImg() {
     const m = {}
     const n = {}
     for (const p of (data.rows || [])) {
-      if (p.sku && p.image_url) m[p.sku] = p.image_url
+      if (p.sku && (p.image_url || productImage(p.sku))) m[p.sku] = p.image_url || productImage(p.sku)
       if (p.sku && p.name) n[p.sku] = p.name
     }
     imgMap.value = m
@@ -410,7 +411,7 @@ async function loadProductsImg() {
 function firstSkuImg(row) {
   const list = safeJson(row.items_json)
   const sku = list && list[0] && list[0].sku
-  return sku ? (imgMap.value[sku] || '') : ''
+  return sku ? (imgMap.value[sku] || productImage(sku) || '') : ''
 }
 function firstSkuName(row) {
   const list = safeJson(row.items_json)

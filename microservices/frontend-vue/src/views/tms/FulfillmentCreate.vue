@@ -242,6 +242,7 @@ import { merchantAll, tmsChannelByCountry, warehouseAll, productByMerchant,
   tmsQuote, tmsQuoteCompare, tmsOrderCreate, routeAdvice } from '../../api'
 import { countryLabel, COUNTRY_CODES } from '../../utils/country'
 import { fmtDateTime } from '../../utils/format'
+import { productImage } from '../../utils/productImage'
 
 const router = useRouter()
 const fmt = fmtDateTime

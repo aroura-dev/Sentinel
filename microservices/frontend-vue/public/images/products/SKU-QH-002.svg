@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#eef4fb"/>
-  <circle cx="100" cy="102" r="56" fill="#5b7a8c"/>
-  <circle cx="100" cy="102" r="40" fill="#7c9aad"/>
-  <path d="M88 96 l8 8 l16 -18" fill="none" stroke="#d7e6ec" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="100" cy="102" r="6" fill="#b9d4e2"/>
-</svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6366F1'/><stop offset='1' stop-color='#4338CA'/></linearGradient></defs><rect width='160' height='160' rx='24' fill='url(#g)'/><circle cx='132' cy='25' r='38' fill='#fff' opacity='.10'/><rect x="35" y="73" width="90" height="50" rx="16" fill="#EEF2FF"/><circle cx="80" cy="66" r="31" fill="#C7D2FE"/><path d="M68 66h24M80 54v24" stroke="#4338CA" stroke-width="7" stroke-linecap="round"/><text x='80' y='150' text-anchor='middle' fill='#fff' font-size='14' font-family='Microsoft YaHei,Arial,sans-serif' font-weight='600'>无线充电器</text></svg>

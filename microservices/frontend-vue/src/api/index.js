@@ -12,8 +12,8 @@ export const smsSend = (phone, scene = 'login') =>
 export const smsLogin = (phone, code, remember = false) =>
   request.post('/auth/sms/login', null, { params: { phone, code, remember } })
 // 注册：手机验证码 + 设密码（username=phone，默认角色由后端配置）；重置：验证码 + 新密码
-export const smsRegister = (phone, code, password, nickname = '') =>
-  request.post('/auth/sms/register', null, { params: { phone, code, password, nickname } })
+export const smsRegister = (phone, code, username, password, nickname = '') =>
+  request.post('/auth/sms/register', null, { params: { phone, code, username, password, nickname } })
 // 邮箱验证码：scene=login(须已注册)/register(须未注册)/reset
 export const emailSend = (email, scene = 'login') =>
   request.post('/auth/email/send', null, { params: { email, scene } })

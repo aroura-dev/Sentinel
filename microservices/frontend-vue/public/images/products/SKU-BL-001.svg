@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#fbf4ec"/>
-  <path d="M62 70 l-8 52 h34 l6 -40 z" fill="#d98a5b"/>
-  <path d="M138 70 l8 52 h-34 l-6 -40 z" fill="#d98a5b"/>
-  <path d="M70 62 h60 v46 h-60 z" fill="#e8a97c"/>
-  <path d="M70 56 h60 v14 h-60 z" fill="#c9764a"/>
-  <path d="M90 62 v46 M110 62 v46 M100 62 v46" stroke="#c9764a" stroke-width="2" opacity="0.6"/>
-</svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#8B5CF6'/><stop offset='1' stop-color='#6D28D9'/></linearGradient></defs><rect width='160' height='160' rx='24' fill='url(#g)'/><circle cx='132' cy='25' r='38' fill='#fff' opacity='.10'/><path d="M56 34l24 12 24-12 28 25-15 20-9-7v63H52V72l-9 7-15-20 28-25z" fill="#F5F3FF"/><path d="M68 34c3 13 21 13 24 0" fill="none" stroke="#8B5CF6" stroke-width="5"/><text x='80' y='150' text-anchor='middle' fill='#fff' font-size='14' font-family='Microsoft YaHei,Arial,sans-serif' font-weight='600'>针织毛衣</text></svg>

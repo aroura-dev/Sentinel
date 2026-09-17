@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#f3f6fb"/>
-  <rect x="52" y="62" width="96" height="22" rx="6" fill="#6b8ba8"/>
-  <rect x="58" y="80" width="84" height="66" rx="8" fill="#8fa9c0"/>
-  <rect x="70" y="92" width="60" height="12" rx="4" fill="#dbe6f0"/>
-  <rect x="70" y="112" width="40" height="12" rx="4" fill="#dbe6f0"/>
-  <circle cx="100" cy="86" r="7" fill="#a8bfd2"/>
-</svg>
+<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#14B8A6'/><stop offset='1' stop-color='#0F766E'/></linearGradient></defs><rect width='160' height='160' rx='24' fill='url(#g)'/><circle cx='132' cy='25' r='38' fill='#fff' opacity='.10'/><rect x="34" y="48" width="92" height="70" rx="10" fill="#F0FDFA"/><rect x="28" y="35" width="104" height="24" rx="8" fill="#CCFBF1"/><path d="M66 76h28" stroke="#0F766E" stroke-width="7" stroke-linecap="round"/><text x='80' y='150' text-anchor='middle' fill='#fff' font-size='14' font-family='Microsoft YaHei,Arial,sans-serif' font-weight='600'>收纳箱</text></svg>
