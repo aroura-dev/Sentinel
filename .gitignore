@@ -54,3 +54,5 @@ __pycache__/
 .coverage
 htmlcov/
 
+
+aliyun-ak*.png
