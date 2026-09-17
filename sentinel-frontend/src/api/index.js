@@ -5,6 +5,23 @@ export const login = (username, password) =>
   request.post('/auth/login', null, { params: { username, password } })
 export const logout = () => request.post('/auth/logout')
 export const me = () => request.get('/auth/me')
+export const updateAvatar = (data) => request.post('/auth/avatar', data)
+export const smsSend = (phone, scene = 'login') =>
+  request.post('/auth/sms/send', null, { params: { phone, scene } })
+export const smsLogin = (phone, code, remember = false) =>
+  request.post('/auth/sms/login', null, { params: { phone, code, remember } })
+export const smsRegister = (phone, code, password, nickname = '') =>
+  request.post('/auth/sms/register', null, { params: { phone, code, password, nickname } })
+export const smsReset = (phone, code, newPassword) =>
+  request.post('/auth/sms/reset', null, { params: { phone, code, newPassword } })
+export const emailSend = (email, scene = 'login') =>
+  request.post('/auth/email/send', null, { params: { email, scene } })
+export const emailLogin = (email, code, remember = false) =>
+  request.post('/auth/email/login', null, { params: { email, code, remember } })
+export const emailRegister = (email, code, password, nickname = '') =>
+  request.post('/auth/email/register', null, { params: { email, code, password, nickname } })
+export const emailReset = (email, code, newPassword) =>
+  request.post('/auth/email/reset', null, { params: { email, code, newPassword } })
 
 // ===================== 物流 =====================
 export const orderList = (params) => request.get('/logistics/order/list', { params })

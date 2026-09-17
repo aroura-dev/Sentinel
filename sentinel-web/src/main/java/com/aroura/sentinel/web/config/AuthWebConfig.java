@@ -17,6 +17,8 @@ public class AuthWebConfig implements WebMvcConfigurer {
 
     private static final String[] EXCLUDE = {
             "/api/auth/login",
+            "/api/auth/sms/**",
+            "/api/auth/email/**",
             "/actuator/**",
             "/swagger-ui/**",
             "/swagger-resources/**",

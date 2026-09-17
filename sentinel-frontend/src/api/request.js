@@ -33,9 +33,6 @@ request.interceptors.response.use(
       window.location.href = '/login'
     } else if (err.response && err.response.status === 403) {
       ElMessage.warning('无权限访问该资源')
-      if (window.location.pathname !== '/dashboard') {
-        window.location.href = '/dashboard'
-      }
     } else {
       ElMessage.error(err.message || '网络错误')
     }

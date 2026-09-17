@@ -15,7 +15,7 @@ import java.util.Map;
 @Repository
 public class SentinelUserDao {
 
-    private static final String COLUMNS = "id, username, password, nickname, role, status, created_at";
+    private static final String COLUMNS = "id, username, phone, email, avatar, password, nickname, role, status, created_at";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -27,6 +27,30 @@ public class SentinelUserDao {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT " + COLUMNS + " FROM sentinel_user WHERE username = ? AND is_deleted = 0 LIMIT 1", username);
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public Map<String, Object> findByPhone(String phone) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT " + COLUMNS + " FROM sentinel_user WHERE phone = ? AND is_deleted = 0 LIMIT 1", phone);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public boolean existsByPhone(String phone) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sentinel_user WHERE phone = ? AND is_deleted = 0", Integer.class, phone);
+        return n != null && n > 0;
+    }
+
+    public Map<String, Object> findByEmail(String email) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT " + COLUMNS + " FROM sentinel_user WHERE email = ? AND is_deleted = 0 LIMIT 1", email);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public boolean existsByEmail(String email) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sentinel_user WHERE email = ? AND is_deleted = 0", Integer.class, email);
+        return n != null && n > 0;
     }
 
     public List<Map<String, Object>> listUsers() {
@@ -75,9 +99,21 @@ public class SentinelUserDao {
     }
 
     public Long insert(String username, String passwordHash, String nickname, String role, String status) {
+        return insert(username, null, passwordHash, nickname, role, status);
+    }
+
+    public Long insert(String username, String phone, String passwordHash, String nickname, String role, String status) {
         jdbcTemplate.update(
-                "INSERT INTO sentinel_user (username, password, nickname, role, status) VALUES (?, ?, ?, ?, ?)",
-                username, passwordHash, nickname, role, status);
+                "INSERT INTO sentinel_user (username, phone, password, nickname, role, status) VALUES (?, ?, ?, ?, ?, ?)",
+                username, phone, passwordHash, nickname, role, status);
+        Number key = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Number.class);
+        return key == null ? null : key.longValue();
+    }
+
+    public Long insertByEmail(String email, String passwordHash, String nickname, String role, String status) {
+        jdbcTemplate.update(
+                "INSERT INTO sentinel_user (username, email, password, nickname, role, status) VALUES (?, ?, ?, ?, ?, ?)",
+                email, email, passwordHash, nickname, role, status);
         Number key = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Number.class);
         return key == null ? null : key.longValue();
     }
@@ -94,6 +130,10 @@ public class SentinelUserDao {
 
     public void updatePassword(Long id, String passwordHash) {
         jdbcTemplate.update("UPDATE sentinel_user SET password=? WHERE id=? AND is_deleted=0", passwordHash, id);
+    }
+
+    public void updateAvatar(String username, String avatar) {
+        jdbcTemplate.update("UPDATE sentinel_user SET avatar=? WHERE username=? AND is_deleted=0", avatar, username);
     }
 
     /** 除指定用户外，当前启用中的 ADMIN 数量（用于“至少保留一个管理员”保护） */

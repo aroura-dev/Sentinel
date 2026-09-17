@@ -277,22 +277,28 @@ async function load() {
 }
 
 async function loadStats() {
-  try {
-    const t = await tmsOverview()
-    values.inTransit = t.inTransit ?? 0
-    values.anomaly = t.anomaly ?? 0
-    values.workorders = t.openWorkorders ?? 0
-  } catch (e) { /* 无权限忽略 */ }
+  if (isOps.value || isFin.value) {
+    try {
+      const t = await tmsOverview()
+      values.inTransit = t.inTransit ?? 0
+      values.anomaly = t.anomaly ?? 0
+      values.workorders = t.openWorkorders ?? 0
+    } catch (e) { /* 无权限忽略 */ }
+  }
   try { values.today = (await tmsOrderList({ page: 1, perPage: 1, startDate: todayStr(), endDate: todayStr() })).count || 0 } catch (e) { /* 忽略 */ }
   try { values.pending = (await tmsOrderList({ page: 1, perPage: 1, node: 'CREATED' })).count || 0 } catch (e) { /* 忽略 */ }
-  try { values.review = (await orderReviewList({ page: 1, perPage: 1, status: 'PENDING' })).count || 0 } catch (e) { /* 忽略 */ }
-  try {
-    const [d, s] = await Promise.all([
-      billList({ status: 'DRAFT', page: 1, perPage: 1 }),
-      billList({ status: 'SUBMITTED', page: 1, perPage: 1 })
-    ])
-    values.bills = (d.count || 0) + (s.count || 0)
-  } catch (e) { /* 忽略 */ }
+  if (isOps.value) {
+    try { values.review = (await orderReviewList({ page: 1, perPage: 1, status: 'PENDING' })).count || 0 } catch (e) { /* 忽略 */ }
+  }
+  if (role.value === ROLES.ADMIN || isFin.value) {
+    try {
+      const [d, s] = await Promise.all([
+        billList({ status: 'DRAFT', page: 1, perPage: 1 }),
+        billList({ status: 'SUBMITTED', page: 1, perPage: 1 })
+      ])
+      values.bills = (d.count || 0) + (s.count || 0)
+    } catch (e) { /* 忽略 */ }
+  }
 }
 
 async function loadBiz() {
@@ -303,7 +309,7 @@ async function loadBiz() {
     } else {
       recentOrders.value = (await tmsOrderList({ page: 1, perPage: 5 })).rows || []
     }
-    anomalyOrders.value = (await riskOrders({ page: 1, perPage: 5 })).rows || []
+    anomalyOrders.value = isMch.value ? [] : ((await riskOrders({ page: 1, perPage: 5 })).rows || [])
   } catch (e) { /* 忽略 */ } finally { bizLoading.value = false }
 }
 

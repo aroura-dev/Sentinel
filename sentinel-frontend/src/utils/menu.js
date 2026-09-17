@@ -173,6 +173,21 @@ export function pathAllowed(path, perms = []) {
 }
 
 /** 路径 → 允许角色（路由守卫用）；未配置返回 null（不限） */
+export function landingPath(perms = [], role = '') {
+  if (Array.isArray(perms) && perms.length) {
+    if (pathAllowed('/dashboard', perms)) return '/dashboard'
+    for (const item of MENU) {
+      for (const child of item.children || []) {
+        if (pathAllowed(child.index, perms)) return child.index
+      }
+    }
+  }
+  if (role === ROLES.MERCHANT || role === ROLES.CUSTOMER_SERVICE) {
+    return '/workbench'
+  }
+  return '/dashboard'
+}
+
 export function rolesForPath(path) {
   for (const item of MENU) {
     if (item.children) {

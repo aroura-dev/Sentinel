@@ -1,6 +1,8 @@
 package com.aroura.sentinel.web.service;
 
 import com.aroura.sentinel.web.dao.SentinelUserDao;
+import com.aroura.sentinel.web.email.EmailCodeService;
+import com.aroura.sentinel.web.sms.SmsCodeService;
 import com.aroura.sentinel.web.vo.CurrentUserVO;
 import com.aroura.sentinel.web.vo.LoginResultVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * AuthService 测试：bcrypt 校验、会话 token 落 Redis（username:role）、/me 还原
+ * AuthService 测试：bcrypt 校验、会话 token 落 Redis（username:role）、/me 还原。
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -39,17 +41,21 @@ class AuthServiceTest {
     private StringRedisTemplate redisTemplate;
     @Mock
     private ValueOperations<String, String> valueOps;
+    @Mock
+    private SmsCodeService smsCodeService;
+    @Mock
+    private EmailCodeService emailCodeService;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(redisTemplate, userDao);
+        authService = new AuthService(redisTemplate, userDao, smsCodeService, emailCodeService);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
     }
 
     private Map<String, Object> user(String username, String rawPassword, String role) {
-        Map<String, Object> user = new HashMap<>(4);
+        Map<String, Object> user = new HashMap<String, Object>(4);
         user.put("username", username);
         user.put("password", new BCryptPasswordEncoder().encode(rawPassword));
         user.put("role", role);
@@ -68,7 +74,6 @@ class AuthServiceTest {
         assertEquals("admin", vo.getUsername());
         assertEquals("ADMIN", vo.getRole());
         assertNotNull(vo.getToken());
-        // 会话值 = username:role，TTL 默认 7200s
         verify(valueOps).set(eq(AuthService.TOKEN_PREFIX + vo.getToken()), eq("admin:ADMIN"), any(Duration.class));
     }
 

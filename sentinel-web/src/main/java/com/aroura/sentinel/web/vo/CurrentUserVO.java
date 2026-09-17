@@ -13,4 +13,5 @@ public class CurrentUserVO {
     private String username;
     private String role;
     private String nickname;
+    private String avatar;
 }

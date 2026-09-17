@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { MENU, rolesForPath, pathAllowed } from '../utils/menu'
+import { MENU, rolesForPath, pathAllowed, landingPath } from '../utils/menu'
 
 // 菜单叶子路径集合（详情页等非菜单路由不受菜单权限拦截）
 const MENU_LEAF_PATHS = new Set()
@@ -56,7 +56,6 @@ const routes = [
       { path: 'tms/risk-alert', name: 'RiskAlert', component: () => import('../views/tms/RiskAlert.vue'), meta: { title: '风险预警' } },
       { path: 'tms/inventory', name: 'Inventory', component: () => import('../views/tms/Inventory.vue'), meta: { title: '库存查询' } },
       { path: 'tms/api-console', name: 'ApiConsole', component: () => import('../views/tms/ApiConsole.vue'), meta: { title: '开放接口' } },
-      // 规划中功能：统一占位页（开发后替换为真实页面）
       { path: 'tms/order-review', name: 'OrderReview', component: () => import('../views/tms/OrderReview.vue'), meta: { title: '订单审核' } },
       { path: 'tms/order-merge', name: 'OrderMerge', component: () => import('../views/tms/OrderMerge.vue'), meta: { title: '合并运单' } },
       { path: 'tms/sign-back', name: 'SignBack', component: () => import('../views/tms/SignBack.vue'), meta: { title: '签收回单' } },
@@ -78,31 +77,38 @@ const router = createRouter({
   routes
 })
 
-// 守卫：token 认证 + 角色鉴权（角色矩阵来自 utils/menu，与菜单单一来源）
+// 守卫：token 认证 + 角色鉴权；无权限时跳到角色可用落地页，避免重定向循环
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('sentinel_token')
+  const role = localStorage.getItem('sentinel_role')
+  let perms = []
+  try { perms = JSON.parse(localStorage.getItem('sentinel_permissions') || '[]') } catch (e) { perms = [] }
+
   if (to.path !== '/login' && !token) {
     next('/login')
     return
   }
   if (to.path === '/login' && token) {
-    next('/dashboard')
+    next(landingPath(perms, role))
     return
   }
-  // 动态菜单权限：已加载权限时按权限拦截；未加载/未配置回退硬编码角色过滤
-  let perms = []
-  try { perms = JSON.parse(localStorage.getItem('sentinel_permissions') || '[]') } catch (e) { perms = [] }
+
   if (Array.isArray(perms) && perms.length) {
     if (MENU_LEAF_PATHS.has(to.path) && !pathAllowed(to.path, perms)) {
-      next('/dashboard')
-      return
+      const fallback = landingPath(perms, role)
+      if (fallback && fallback !== to.path) {
+        next(fallback)
+        return
+      }
     }
   } else {
-    const role = localStorage.getItem('sentinel_role')
     const roles = rolesForPath(to.path)
     if (roles && role && !roles.includes(role)) {
-      next('/dashboard')
-      return
+      const fallback = landingPath([], role)
+      if (fallback && fallback !== to.path) {
+        next(fallback)
+        return
+      }
     }
   }
   next()

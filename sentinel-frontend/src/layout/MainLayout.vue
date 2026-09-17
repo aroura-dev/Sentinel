@@ -108,9 +108,26 @@
           </el-popover>
           <div class="header-user">
             <el-tooltip :content="userTip" placement="bottom" popper-class="header-tip">
-              <button class="icon-btn" type="button" aria-label="用户">
-                <el-icon :size="18"><User /></el-icon>
-              </button>
+              <el-popover placement="bottom-end" :width="260" trigger="click" popper-class="user-panel-popover">
+              <template #reference>
+                <el-avatar :size="30" class="header-avatar" :src="authStore.avatar || undefined" :style="authStore.avatar ? {} : avatarStyle">
+                  <span v-if="!authStore.avatar">{{ avatarText }}</span>
+                </el-avatar>
+              </template>
+              <div class="user-panel">
+                <div class="user-panel-name">{{ authStore.nickname || authStore.username || '用户' }}</div>
+                <div class="user-panel-account">{{ authStore.username }}</div>
+                <div class="user-panel-role">{{ roleLabel }}</div>
+                <el-upload
+                  :auto-upload="false"
+                  :show-file-list="false"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  :on-change="onAvatarChange"
+                >
+                  <el-button type="primary" plain size="small" class="user-panel-upload">上传头像</el-button>
+                </el-upload>
+              </div>
+            </el-popover>
             </el-tooltip>
             <el-tooltip content="退出登录" placement="bottom" popper-class="header-tip">
               <button class="icon-btn" type="button" aria-label="退出登录" @click="handleLogout">
@@ -153,9 +170,9 @@
 <script setup>
 import { computed, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../store/auth'
-import { logout, globalSearch, notifList, myPermissions } from '../api'
+import { logout, globalSearch, notifList, myPermissions, me, updateAvatar } from '../api'
 import { MENU, ROLES, visibleMenu, filterMenuByPaths, moduleOfPath } from '../utils/menu'
 import LogoMark from '../components/LogoMark.vue'
 import ModuleStats from '../components/ModuleStats.vue'
@@ -236,7 +253,39 @@ function nodeLabel(node) {
 function statusType(s) { return { SENT: 'success', FAILED: 'danger', PENDING: 'warning' }[s] || 'info' }
 
 watch(() => route.path, () => { loadNotifs() })
+async function onAvatarChange(uploadFile) {
+  const file = uploadFile && uploadFile.raw
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+    ElMessage.warning('仅支持 JPG、PNG、GIF、WebP 图片')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('头像大小不能超过 2MB')
+    return
+  }
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    const res = await updateAvatar(form)
+    authStore.setAvatar(res && res.avatar)
+    ElMessage.success('头像已更新')
+  } catch (e) {
+    // 请求拦截器已提示错误
+  }
+}
+
+async function syncProfile() {
+  try {
+    const user = await me()
+    if (user) authStore.setProfile(user.username, user.role, user.nickname, user.avatar)
+  } catch (e) {
+    // 用户资料刷新失败不阻塞页面
+  }
+}
+
 onMounted(async () => {
+  syncProfile()
   loadNotifs()
   notifTimer = setInterval(loadNotifs, 60000)
   if (!authStore.permissions.length) {
@@ -286,8 +335,27 @@ const ROLE_LABELS = {
   [ROLES.FINANCE]: '财务'
 }
 const roleLabel = computed(() => ROLE_LABELS[authStore.role] || authStore.role)
-// 用户图标悬停提示：只显示一个（昵称优先，回退用户名）
-const userTip = computed(() => authStore.nickname || authStore.username || '')
+// 当前登录用户的真实展示信息：昵称 + 账号 + 角色
+const userTip = computed(() => {
+  const name = authStore.nickname || authStore.username || '用户'
+  const account = authStore.username && authStore.username !== name ? ` (${authStore.username})` : ''
+  return `${name}${account} · ${roleLabel.value}`
+})
+const avatarText = computed(() => {
+  const name = authStore.nickname || authStore.username || '用户'
+  return name.slice(0, 2).toUpperCase()
+})
+const avatarStyle = computed(() => {
+  const seed = authStore.username || authStore.nickname || 'user'
+  let hash = 0
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) % 360
+  return {
+    background: `linear-gradient(135deg, hsl(${hash}, 68%, 42%), hsl(${(hash + 38) % 360}, 76%, 58%))`,
+    color: '#fff',
+    fontWeight: 600,
+    flex: 'none'
+  }
+})
 
 // 面包屑：父模块 / 当前子页面；父级可点跳模块默认页，末级为当前页
 const breadcrumbs = computed(() => {
@@ -545,6 +613,35 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.header-avatar {
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.14);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.header-avatar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 9px rgba(16, 24, 40, 0.18);
+}
+.user-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.user-panel-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d2129;
+}
+.user-panel-account,
+.user-panel-role {
+  font-size: 12px;
+  color: #86909c;
+}
+.user-panel-upload {
+  margin-top: 8px;
+  width: 100%;
 }
 .icon-btn {
   width: 36px;

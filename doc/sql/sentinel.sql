@@ -202,6 +202,9 @@ DROP TABLE IF EXISTS `sentinel_user`;
 CREATE TABLE `sentinel_user` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
     `username` VARCHAR(64) NOT NULL COMMENT '登录名',
+    `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
+    `email` VARCHAR(128) DEFAULT NULL COMMENT '邮箱',
+    `avatar` MEDIUMTEXT DEFAULT NULL COMMENT '头像 data URL',
     `password` VARCHAR(100) NOT NULL COMMENT 'bcrypt 哈希',
     `nickname` VARCHAR(64) DEFAULT NULL COMMENT '显示名',
     `role` VARCHAR(24) NOT NULL COMMENT '角色：ADMIN/OPERATOR/CUSTOMER_SERVICE/MERCHANT/FINANCE',
@@ -210,5 +213,7 @@ CREATE TABLE `sentinel_user` (
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删 1已删',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_phone` (`phone`),
+    UNIQUE KEY `uk_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sentinel 用户表';
