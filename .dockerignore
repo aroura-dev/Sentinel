@@ -3,11 +3,13 @@
 .idea
 .vscode
 .env
+.env.*
+!.env.example
 **/node_modules
 **/dist
 **/*.log
 microservices
 doc/uml
 **/target
-!sentinel-web/target
-!sentinel-web/target/sentinel-web-0.0.1-SNAPSHOT.jar
+aliyun-ak*.png
+*.pdf

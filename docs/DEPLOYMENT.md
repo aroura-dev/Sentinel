@@ -1,157 +1,182 @@
 # Sentinel 部署指南
 
-## 1. 环境要求
+## 1. 推荐部署方式
 
-| 组件 | 要求 |
+推荐直接使用仓库根目录的 `docker-compose.sentinel.yml`。该方式不依赖宿主机 JDK、Maven 或 Node.js，后端和前端均在 Docker 构建阶段完成。
+
+只需安装：
+
+- Docker Desktop 或 Docker Engine
+- Docker Compose v2
+
+## 2. 全新克隆部署
+
+在任意目录执行：
+
+```bash
+git clone https://github.com/aroura-dev/Sentinel.git
+cd Sentinel
+docker compose -f docker-compose.sentinel.yml up -d --build
+```
+
+首次启动会自动：
+
+1. 使用 Maven 容器编译 `sentinel-web` 及其依赖模块。
+2. 构建 Vue 前端生产镜像。
+3. 创建 MySQL 数据库并执行 `doc/docker/mysql/init-sentinel.sh`。
+4. 初始化用户、角色、订单、库存、工单、账单、API 密钥和演示业务数据。
+5. 启动 MySQL、Redis、后端和前端。
+
+访问：
+
+| 服务 | 地址 |
 |---|---|
-| Docker | Docker Desktop 或 Docker Engine，支持 Compose v2 |
-| Java | JDK 21 |
-| Maven | 3.9+ |
-| 可选 | 自定义 Maven settings：`MAVEN_SETTINGS=/path/to/settings.xml` |
-| 可选 | `DASHSCOPE_API_KEY`，未配置时 Agent 自动降级 |
+| 管理端 | http://localhost:5173 |
+| 后端 API | http://localhost:8080 |
+| MySQL | localhost:3307 |
+| Redis | localhost:6379 |
 
-检查环境：
+默认账号：`张伟 / Admin@123`。
 
-```bash
-docker version
-docker compose version
-java -version
-mvn -version
-```
+## 3. 环境变量
 
-## 2. 一键启动
+默认配置无需 `.env` 即可启动。需要自定义时可执行：
 
 ```bash
-cd microservices
-bash infra/tools/up.sh
+cp .env.example .env
 ```
 
-脚本自动完成：
+主要变量：
 
-1. 构建共享模块和四个服务的 jar。
-2. 构建后端和前端镜像。
-3. 启动 4 个 MySQL、Redis、Kafka、SMS Stub 和业务服务。
-4. 等待 Gateway 可用。
-5. 执行端到端 smoke 验收。
+```env
+SENTINEL_DATABASE_PASSWORD=root123_A
+SENTINEL_REDIS_PASSWORD=sentinel
+SENTINEL_FRONTEND_HOST_PORT=5173
+SENTINEL_BACKEND_HOST_PORT=8080
+SENTINEL_MYSQL_HOST_PORT=3307
+SENTINEL_REDIS_HOST_PORT=6379
+DASHSCOPE_API_KEY=
+```
 
-停止环境：
+未配置 `DASHSCOPE_API_KEY` 时，Agent 自动使用模板降级，不影响页面和其他业务功能。
+
+## 4. 启动、停止与重置
+
+停止并保留数据：
 
 ```bash
-cd microservices
-bash infra/tools/down.sh
+docker compose -f docker-compose.sentinel.yml down
 ```
 
-删除数据卷：
+重新启动：
 
 ```bash
-cd microservices
-bash infra/tools/down.sh -v
+docker compose -f docker-compose.sentinel.yml up -d
 ```
 
-## 3. 服务与端口
-
-| 服务 | 地址 | 说明 |
-|---|---|---|
-| Gateway | http://localhost:8080 | 统一入口、token 校验、路由 |
-| Auth Service | http://localhost:8081 | 注册、登录、登出、当前用户 |
-| Msg Service | http://localhost:8082 | 消息发送与 Kafka 投递 |
-| Logistics Service | http://localhost:8083 | 订单、轨迹、工单、通知闭环 |
-| Agent Service | http://localhost:8084 | AI 诊断、文案、调用审计 |
-| 微服务演示台 | http://localhost:5175 | 经 Gateway 访问后端 |
-| SMS Stub | http://localhost:18999 | 本地短信渠道桩 |
-| Auth MySQL | `localhost:33061` | `sentinel_auth` |
-| Msg MySQL | `localhost:33062` | `sentinel_msg` |
-| Logistics MySQL | `localhost:33063` | `sentinel_logistics` |
-| Agent MySQL | `localhost:33064` | `sentinel_agent` |
-| Redis | `localhost:6381` | 登录会话与去重 |
-| Kafka | `localhost:29092` | 异步消息管道 |
-
-## 4. 手动启动
+查看状态和日志：
 
 ```bash
-cd microservices
-
-# 安装共享父 POM
-mvn -s "${MAVEN_SETTINGS:-}" -N install
-
-# 构建服务
-mvn -s "${MAVEN_SETTINGS:-}" \
-  -pl services/auth-service,services/msg-service,services/logistics-service,services/agent-service,gateway \
-  -am package -DskipTests
-
-# 准备镜像上下文
-mkdir -p dist
-cp services/{auth,msg,logistics,agent}-service/target/*.jar dist/
-cp gateway/target/sentinel-gateway.jar dist/
-
-# 启动完整基础设施和应用
-cd infra/docker
-docker compose -f compose.infra.yml up -d --build
+docker compose -f docker-compose.sentinel.yml ps
+docker compose -f docker-compose.sentinel.yml logs -f backend
+docker compose -f docker-compose.sentinel.yml logs -f frontend
 ```
 
-## 5. 验证闭环
+清空数据库并重新初始化：
 
 ```bash
-cd microservices
-bash infra/tools/smoke_closed_loop.sh
+docker compose -f docker-compose.sentinel.yml down -v
+docker compose -f docker-compose.sentinel.yml up -d --build
 ```
 
-预期结果：
+## 5. 数据库初始化
 
-- Gateway 登录成功。
-- Logistics 接收通知请求。
-- Agent 生成文案；没有 Key 时记录 `degraded` 并返回默认文案。
-- Msg 写入 Kafka，SMS Stub 返回成功。
-- 三个业务库分别留下记录，通知状态最终为 `SENT`。
-
-手工验证：
-
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
-  -d "username=张伟&password=Admin@123" \
-  | grep -oE '"token":"[a-f0-9]+"' | cut -d'"' -f4)
-
-curl -s -X POST \
-  "http://localhost:8080/api/logistics/notify/send?orderNo=<订单号>&node=IN_TRANSIT&role=buyer&channel=sms" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-## 6. 日志与排查
-
-```bash
-cd microservices/infra/docker
-
-docker compose -f compose.infra.yml ps
-docker compose -f compose.infra.yml logs -f gateway
-docker compose -f compose.infra.yml logs -f auth-service
-docker compose -f compose.infra.yml logs -f logistics-service
-docker compose -f compose.infra.yml logs -f agent-service
-docker compose -f compose.infra.yml logs -f msg-service
-```
-
-常见问题：
-
-- **401**：Gateway 未收到有效 token，检查登录响应和 `Authorization` 请求头。
-- **403**：服务直连时缺少 Gateway 注入的 `X-User-Name` / `X-User-Role`。
-- **Agent degraded**：未配置 `DASHSCOPE_API_KEY`，属于预期降级。
-- **MySQL 端口冲突**：修改 `infra/docker/compose.infra.yml`，并同步修改服务配置。
-- **Kafka 未就绪**：等待容器健康后重试，或查看 `compose.infra.yml` 中 Kafka 日志。
-
-## 7. 数据库初始化
-
-各服务分库脚本位于：
+初始化入口：
 
 ```text
-microservices/infra/mysql/auth/init/
-microservices/infra/mysql/msg/init/
-microservices/infra/mysql/logistics/init/
-microservices/infra/mysql/agent/init/
+doc/docker/mysql/init-sentinel.sh
 ```
 
-MySQL 容器只在数据卷为空时执行 init 脚本。需要重新初始化时使用：
+实际 SQL 位于：
+
+```text
+doc/sql/
+```
+
+MySQL 官方镜像只在数据卷为空时执行初始化。修改初始化脚本后，需要执行 `down -v` 清空旧数据卷，再重新启动。
+
+当前初始化数据包括：
+
+- 5 个中文账号及联系方式
+- 用户头像
+- 4 个商家、10 个商品、2 个仓库
+- 42 个订单、42 个运单、69 条物流轨迹
+- 17 个工单
+- 库存台账、出入库流水
+- 售后、账单、通知和开放 API 示例
+- 客服会话由后端启动时自动注入
+
+## 6. 端口冲突
+
+以下默认端口可能与其他项目冲突：
+
+- `5173`
+- `8080`
+- `3307`
+- `6379`
+
+在 `.env` 中修改宿主机端口：
+
+```env
+SENTINEL_FRONTEND_HOST_PORT=15173
+SENTINEL_BACKEND_HOST_PORT=18080
+SENTINEL_MYSQL_HOST_PORT=13307
+SENTINEL_REDIS_HOST_PORT=16379
+```
+
+容器之间的通信端口保持不变，前端仍通过 `backend:8080` 访问后端。
+
+## 7. 常见问题
+
+### 后端一直 unhealthy
+
+检查后端日志：
 
 ```bash
-cd microservices
-bash infra/tools/down.sh -v
-bash infra/tools/up.sh
+docker compose -f docker-compose.sentinel.yml logs --tail 300 backend
+```
+
+常见原因是 MySQL 初始化未完成或数据卷使用了旧的错误结构。可执行 `down -v` 后重新初始化。
+
+### 登录账号无效
+
+使用：
+
+```text
+用户名：张伟
+密码：Admin@123
+```
+
+### 图片或页面数据为空
+
+确认前端镜像已重新构建：
+
+```bash
+docker compose -f docker-compose.sentinel.yml up -d --build frontend
+```
+
+### Docker 端口已分配
+
+修改 `.env` 中的宿主机端口，或停止占用相同端口的其他项目。
+
+## 8. 微服务版本
+
+`microservices/` 目录保留了四服务拆分版本，适合研究数据库分库、Gateway、Kafka 和 Outbox 链路。该版本依赖更多基础设施，不是普通演示的首选部署方式。
+
+相关脚本：
+
+```text
+microservices/infra/tools/up.sh
+microservices/infra/tools/down.sh
+microservices/infra/tools/smoke_closed_loop.sh
 ```

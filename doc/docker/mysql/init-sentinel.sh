@@ -22,9 +22,6 @@ sentinel_scripts=(
   "z-sentinel-seed.sql"
   "20260911-fix-sentinel-user-nickname.sql"
   "z-sentinel-tms-seed.sql"
-  "20260917-seed-user-avatars.sql"
-  "20260917-fill-user-contacts.sql"
-  "20260917-fill-real-business-data.sql"
   "z-sentinel-order-migrate.sql"
   "z-sentinel-real-data.sql"
   "zz-sentinel-after-sale.sql"
@@ -32,6 +29,9 @@ sentinel_scripts=(
   "zz-sentinel-api-key-enterprise.sql"
   "zz-sentinel-domestic.sql"
   "zz-sentinel-order-module.sql"
+  "20260917-seed-user-avatars.sql"
+  "20260917-fill-user-contacts.sql"
+  "20260917-fill-real-business-data.sql"
 )
 
 for file in "${sentinel_scripts[@]}"; do

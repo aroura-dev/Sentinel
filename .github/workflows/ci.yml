@@ -73,14 +73,6 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: maven
-      - name: Package backend jar
-        run: mvn -B -ntp -pl sentinel-web -am -DskipTests package
       - name: Validate Compose config
         run: docker compose -f docker-compose.sentinel.yml config --quiet
       - name: Build and start stack
@@ -98,7 +90,7 @@ jobs:
           exit 1
       - name: Verify administrator login
         run: |
-          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login?username=张伟&password=Admin%40123')
+          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login' --data-urlencode 'username=张伟' --data-urlencode 'password=Admin@123')
           echo "$response"
           echo "$response" | grep -q '"status":"0"'
       - name: Show container logs

@@ -47,46 +47,91 @@ Sentinel 面向电商物流订单异常处置场景，把“异常发现、工�
 
 ### 环境要求
 
-- Docker Desktop / Docker Engine，支持 `docker compose`
-- JDK 21
-- Maven 3.9+
-- 可选：DashScope API Key，用于真实模型调用
+只需要：
 
-### 一键启动
+- Docker Desktop 或 Docker Engine，支持 Docker Compose v2
+- 可选：Git，用于克隆仓库
 
-```bash
-cd microservices
-bash infra/tools/up.sh
-```
+不需要预装 JDK、Maven 或 Node.js，后端和前端会在容器内自动构建。
 
-脚本会依次完成：
+### 克隆并启动
 
-1. 构建共享模块和服务 jar。
-2. 构建业务镜像。
-3. 启动 4 个 MySQL、Redis、Kafka、SMS Stub 和 5 个服务。
-4. 等待 Gateway 就绪并执行端到端 smoke 验收。
-
-停止服务：
+可以把仓库克隆到任意目录：
 
 ```bash
-cd microservices
-bash infra/tools/down.sh
+git clone https://github.com/aroura-dev/Sentinel.git
+cd Sentinel
 ```
 
-### 服务入口
+可选：复制环境变量模板。默认配置已经可以直接启动：
 
-| 服务 | 地址 | 数据边界 |
-|---|---|---|
-| Gateway | http://localhost:8080 | 无数据库，统一入口 |
-| Auth Service | http://localhost:8081 | `sentinel_auth` |
-| Msg Service | http://localhost:8082 | `sentinel_msg` |
-| Logistics Service | http://localhost:8083 | `sentinel_logistics` |
-| Agent Service | http://localhost:8084 | `sentinel_agent` |
-| 管理控制台 | http://localhost:5175 | 经 Gateway 访问后端 |
-| SMS Stub | http://localhost:18999 | 本地渠道桩 |
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell 可使用：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+一条命令启动完整项目：
+
+```bash
+docker compose -f docker-compose.sentinel.yml up -d --build
+```
+
+首次启动会自动完成：
+
+1. 在容器内编译 Sentinel 后端。
+2. 构建 Vue 前端镜像。
+3. 初始化 MySQL 表结构、当前用户、订单、库存、工单、账单、API 密钥和客服会话数据。
+4. 启动 MySQL、Redis、后端和前端。
+
+### 访问地址
+
+| 服务 | 地址 |
+|---|---|
+| 管理端 | http://localhost:5173 |
+| 后端 API | http://localhost:8080 |
+| MySQL | localhost:3307 |
+| Redis | localhost:6379 |
 
 默认账号：`张伟 / Admin@123`。
 
+### 停止与重启
+
+停止但保留数据：
+
+```bash
+docker compose -f docker-compose.sentinel.yml down
+```
+
+重新启动：
+
+```bash
+docker compose -f docker-compose.sentinel.yml up -d
+```
+
+清空数据并重新初始化：
+
+```bash
+docker compose -f docker-compose.sentinel.yml down -v
+docker compose -f docker-compose.sentinel.yml up -d --build
+```
+
+### 端口冲突
+
+如果 `8080`、`5173`、`3307` 或 `6379` 已被占用，可在 `.env` 中修改：
+
+```env
+SENTINEL_BACKEND_HOST_PORT=18080
+SENTINEL_FRONTEND_HOST_PORT=15173
+SENTINEL_MYSQL_HOST_PORT=13307
+SENTINEL_REDIS_HOST_PORT=16379
+```
+
+修改后重新执行启动命令即可。
 ## 系统架构
 
 ```mermaid
