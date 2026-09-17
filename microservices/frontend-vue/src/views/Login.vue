@@ -370,7 +370,7 @@ async function submitRegister() {
 }
 
 async function afterAuth(data) {
-  authStore.setAuth(data.token, data.username, data.role, data.nickname, remember.value)
+  authStore.setAuth(data.token, data.username, data.role, data.nickname, remember.value, data.avatar)
   try {
     const perms = await myPermissions()
     authStore.setPermissions((perms && perms.paths) || [])

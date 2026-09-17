@@ -56,15 +56,17 @@ public class UserController {
     public BasicResultVO create(@RequestBody Map<String, Object> body) {
         return BasicResultVO.success(userService.create(
                 str(body.get("username")), str(body.get("password")), str(body.get("nickname")),
+                str(body.get("phone")), str(body.get("email")),
                 str(body.get("role")), str(body.get("status"))));
     }
 
     @PutMapping("/{id}")
-    @ApiOperation("修改用户（昵称/角色/状态）")
+    @ApiOperation("修改用户资料（昵称/手机号/邮箱/角色/状态）")
     @RequireRole({"ADMIN"})
     public BasicResultVO update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         return BasicResultVO.success(userService.update(id,
-                str(body.get("nickname")), str(body.get("role")), str(body.get("status"))));
+                str(body.get("nickname")), str(body.get("phone")), str(body.get("email")),
+                str(body.get("role")), str(body.get("status"))));
     }
 
     @PostMapping("/{id}/reset-password")

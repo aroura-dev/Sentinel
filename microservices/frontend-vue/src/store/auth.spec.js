@@ -11,24 +11,24 @@ describe('auth store（RBAC 会话）', () => {
 
   it('setAuth 持久化 token/username/role/nickname', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'admin', 'ADMIN', '系统管理员')
+    store.setAuth('token-1', 'zhangwei', 'ADMIN', '张伟')
     expect(store.token).toBe('token-1')
-    expect(store.username).toBe('admin')
+    expect(store.username).toBe('zhangwei')
     expect(store.role).toBe('ADMIN')
     expect(localStorage.getItem('sentinel_token')).toBe('token-1')
     expect(localStorage.getItem('sentinel_role')).toBe('ADMIN')
-    expect(localStorage.getItem('sentinel_nickname')).toBe('系统管理员')
+    expect(localStorage.getItem('sentinel_nickname')).toBe('张伟')
   })
 
   it('setAuth 未传角色时角色为空（向后兼容旧登录）', () => {
     const store = useAuthStore()
-    store.setAuth('token-2', 'cs')
+    store.setAuth('token-2', 'wangfang')
     expect(store.role).toBe('')
   })
 
   it('logout 清空所有会话 key', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'admin', 'ADMIN')
+    store.setAuth('token-1', 'zhangwei', 'ADMIN')
     store.logout()
     expect(store.token).toBe('')
     expect(store.role).toBe('')
@@ -39,7 +39,7 @@ describe('auth store（RBAC 会话）', () => {
 
   it('remember=false 仅写 sessionStorage（关浏览器即退出）', () => {
     const store = useAuthStore()
-    store.setAuth('token-s', 'operator', 'OPERATOR', '运营', false)
+    store.setAuth('token-s', 'liuyang', 'OPERATOR', '刘洋', false)
     expect(sessionStorage.getItem('sentinel_token')).toBe('token-s')
     expect(sessionStorage.getItem('sentinel_role')).toBe('OPERATOR')
     expect(localStorage.getItem('sentinel_token')).toBeNull()

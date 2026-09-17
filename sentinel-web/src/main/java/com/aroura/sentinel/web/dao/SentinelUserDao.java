@@ -55,12 +55,12 @@ public class SentinelUserDao {
 
     public List<Map<String, Object>> listUsers() {
         return jdbcTemplate.queryForList(
-                "SELECT id, username, nickname, role, status, created_at FROM sentinel_user WHERE is_deleted = 0 ORDER BY id");
+                "SELECT id, username, phone, email, avatar, nickname, role, status, created_at, updated_at FROM sentinel_user WHERE is_deleted = 0 ORDER BY id");
     }
 
     public Map<String, Object> findById(Long id) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, username, nickname, role, status, created_at FROM sentinel_user WHERE id = ? AND is_deleted = 0", id);
+                "SELECT id, username, phone, email, avatar, nickname, role, status, created_at, updated_at FROM sentinel_user WHERE id = ? AND is_deleted = 0", id);
         return rows.isEmpty() ? null : rows.get(0);
     }
 
@@ -74,7 +74,9 @@ public class SentinelUserDao {
         StringBuilder where = new StringBuilder(" WHERE is_deleted = 0");
         List<Object> args = new java.util.ArrayList<>();
         if (keyword != null && !keyword.trim().isEmpty()) {
-            where.append(" AND (username LIKE ? OR nickname LIKE ?)");
+            where.append(" AND (username LIKE ? OR nickname LIKE ? OR phone LIKE ? OR email LIKE ?)");
+            args.add("%" + keyword.trim() + "%");
+            args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
         }
@@ -89,7 +91,7 @@ public class SentinelUserDao {
         String whereSql = where.toString();
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sentinel_user" + whereSql, Integer.class, args.toArray());
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, username, nickname, role, status, created_at FROM sentinel_user" + whereSql
+                "SELECT id, username, phone, email, avatar, nickname, role, status, created_at, updated_at FROM sentinel_user" + whereSql
                         + " ORDER BY id DESC LIMIT ? OFFSET ?",
                 java.util.stream.Stream.concat(args.stream(), java.util.stream.Stream.of(perPage, (page - 1) * perPage)).toArray());
         Map<String, Object> result = new HashMap<>(4);
@@ -103,9 +105,14 @@ public class SentinelUserDao {
     }
 
     public Long insert(String username, String phone, String passwordHash, String nickname, String role, String status) {
+        return insert(username, phone, null, passwordHash, nickname, role, status);
+    }
+
+    public Long insert(String username, String phone, String email, String passwordHash,
+                       String nickname, String role, String status) {
         jdbcTemplate.update(
-                "INSERT INTO sentinel_user (username, phone, password, nickname, role, status) VALUES (?, ?, ?, ?, ?, ?)",
-                username, phone, passwordHash, nickname, role, status);
+                "INSERT INTO sentinel_user (username, phone, email, password, nickname, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                username, phone, email, passwordHash, nickname, role, status);
         Number key = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Number.class);
         return key == null ? null : key.longValue();
     }
@@ -119,9 +126,27 @@ public class SentinelUserDao {
     }
 
     public void update(Long id, String nickname, String role, String status) {
+        update(id, nickname, role, status, null, null);
+    }
+
+    public void update(Long id, String nickname, String role, String status, String phone, String email) {
         jdbcTemplate.update(
-                "UPDATE sentinel_user SET nickname=?, role=?, status=? WHERE id=? AND is_deleted=0",
-                nickname, role, status, id);
+                "UPDATE sentinel_user SET nickname=?, role=?, status=?, phone=?, email=? WHERE id=? AND is_deleted=0",
+                nickname, role, status, phone, email, id);
+    }
+
+    public boolean existsByPhoneExcluding(String phone, Long id) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sentinel_user WHERE phone = ? AND id <> ? AND is_deleted = 0",
+                Integer.class, phone, id);
+        return n != null && n > 0;
+    }
+
+    public boolean existsByEmailExcluding(String email, Long id) {
+        Integer n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sentinel_user WHERE email = ? AND id <> ? AND is_deleted = 0",
+                Integer.class, email, id);
+        return n != null && n > 0;
     }
 
     public void updateStatus(Long id, String status) {

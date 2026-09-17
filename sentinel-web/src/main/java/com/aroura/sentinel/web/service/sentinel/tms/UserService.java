@@ -6,12 +6,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
- * 用户管理服务：5 个固定角色分配（复用前端角色矩阵，不建 role 表）
+ * 用户管理服务：固定角色分配、账号资料维护与状态管理。
  *
  * @author sentinel
  */
@@ -20,6 +24,11 @@ public class UserService {
 
     private static final String STATUS_ENABLED = "1";
     private static final String STATUS_DISABLED = "0";
+    private static final Set<String> ROLE_CODES = new HashSet<>(Arrays.asList(
+            "ADMIN", "OPERATOR", "CUSTOMER_SERVICE", "MERCHANT", "FINANCE"));
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9._-]{2,31}$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
     private static final List<Map<String, Object>> ROLES = buildRoles();
 
@@ -40,37 +49,65 @@ public class UserService {
         return ROLES;
     }
 
-    public Map<String, Object> create(String username, String password, String nickname, String role, String status) {
-        if (username == null || username.trim().isEmpty()) {
-            throw new CommonException("用户名不能为空");
+    public Map<String, Object> create(String username, String password, String nickname,
+                                      String phone, String email, String role, String status) {
+        String normalizedUsername = required(username, "用户名不能为空").trim();
+        if (!USERNAME_PATTERN.matcher(normalizedUsername).matches()) {
+            throw new CommonException("用户名需以字母开头，仅支持字母、数字、点号、下划线和短横线，长度 3-32 位");
         }
-        if (password == null || password.isEmpty()) {
-            throw new CommonException("密码不能为空");
+        String normalizedPassword = password == null ? "" : password;
+        if (normalizedPassword.length() < 6 || normalizedPassword.length() > 64) {
+            throw new CommonException("密码长度需为 6-64 位");
         }
-        if (userDao.existsByUsername(username.trim())) {
-            throw new CommonException("用户名已存在: " + username);
+        String normalizedNickname = normalizeNickname(nickname);
+        String normalizedPhone = normalizePhone(phone);
+        String normalizedEmail = normalizeEmail(email);
+        String normalizedRole = normalizeRole(role);
+        String normalizedStatus = normalizeStatus(status);
+
+        if (userDao.existsByUsername(normalizedUsername)) {
+            throw new CommonException("用户名已存在: " + normalizedUsername);
         }
-        Long id = userDao.insert(username.trim(), passwordEncoder.encode(password),
-                nickname == null ? username.trim() : nickname,
-                role, normalizeStatus(status));
-        auditLogService.log("user", "CREATE", username.trim(), "创建用户 角色=" + role);
+        if (normalizedPhone != null && userDao.existsByPhone(normalizedPhone)) {
+            throw new CommonException("手机号已被其他账号使用");
+        }
+        if (normalizedEmail != null && userDao.existsByEmail(normalizedEmail)) {
+            throw new CommonException("邮箱已被其他账号使用");
+        }
+
+        Long id = userDao.insert(normalizedUsername, normalizedPhone, normalizedEmail,
+                passwordEncoder.encode(normalizedPassword), normalizedNickname, normalizedRole, normalizedStatus);
+        auditLogService.log("user", "CREATE", normalizedUsername, "创建用户 角色=" + normalizedRole);
         return userDao.findById(id);
     }
 
-    public Map<String, Object> update(Long id, String nickname, String role, String status) {
+    public Map<String, Object> update(Long id, String nickname, String phone, String email,
+                                      String role, String status) {
         Map<String, Object> user = userDao.findById(id);
         if (user == null) {
             throw new CommonException("用户不存在: " + id);
         }
-        String next = normalizeStatus(status);
-        guardDisableAdmin(user, next);
-        userDao.update(id, nickname, role, next);
+        String normalizedNickname = normalizeNickname(nickname);
+        String normalizedPhone = normalizePhone(phone);
+        String normalizedEmail = normalizeEmail(email);
+        String normalizedRole = normalizeRole(role);
+        String nextStatus = normalizeStatus(status);
+
+        if (normalizedPhone != null && userDao.existsByPhoneExcluding(normalizedPhone, id)) {
+            throw new CommonException("手机号已被其他账号使用");
+        }
+        if (normalizedEmail != null && userDao.existsByEmailExcluding(normalizedEmail, id)) {
+            throw new CommonException("邮箱已被其他账号使用");
+        }
+
+        guardDisableAdmin(user, nextStatus);
+        userDao.update(id, normalizedNickname, normalizedRole, nextStatus, normalizedPhone, normalizedEmail);
         auditLogService.log("user", "UPDATE", String.valueOf(user.get("username")),
-                "修改用户 角色=" + role + " 状态=" + next);
+                "修改用户资料 角色=" + normalizedRole + " 状态=" + nextStatus);
         return userDao.findById(id);
     }
 
-    /** 重置密码（管理员操作，保留审计） */
+    /** 重置密码（管理员操作，保留审计）。 */
     public Map<String, Object> resetPassword(Long id, String password) {
         Map<String, Object> user = userDao.findById(id);
         if (user == null) {
@@ -98,7 +135,67 @@ public class UserService {
         return userDao.findById(id);
     }
 
-    /** 保护：不允许停用最后一个启用的 ADMIN */
+    private String normalizeNickname(String nickname) {
+        String value = required(nickname, "昵称不能为空").trim();
+        if (value.length() < 2 || value.length() > 32) {
+            throw new CommonException("昵称长度需为 2-32 位");
+        }
+        return value;
+    }
+
+    private String normalizePhone(String phone) {
+        String value = trimToNull(phone);
+        if (value != null && !PHONE_PATTERN.matcher(value).matches()) {
+            throw new CommonException("请输入有效的 11 位手机号");
+        }
+        return value;
+    }
+
+    private String normalizeEmail(String email) {
+        String value = trimToNull(email);
+        if (value != null) {
+            value = value.toLowerCase();
+            if (!EMAIL_PATTERN.matcher(value).matches()) {
+                throw new CommonException("请输入有效的邮箱地址");
+            }
+        }
+        return value;
+    }
+
+    private String normalizeRole(String role) {
+        String value = required(role, "角色不能为空").trim().toUpperCase();
+        if (!ROLE_CODES.contains(value)) {
+            throw new CommonException("角色不合法: " + role);
+        }
+        return value;
+    }
+
+    private static String normalizeStatus(String status) {
+        if ("1".equals(status) || "true".equalsIgnoreCase(String.valueOf(status))) {
+            return STATUS_ENABLED;
+        }
+        if ("0".equals(status) || "false".equalsIgnoreCase(String.valueOf(status))) {
+            return STATUS_DISABLED;
+        }
+        throw new CommonException("状态必须为启用或停用");
+    }
+
+    private static String required(String value, String message) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new CommonException(message);
+        }
+        return value;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** 保护：不允许停用最后一个启用的 ADMIN。 */
     private void guardDisableAdmin(Map<String, Object> user, String nextStatus) {
         boolean disabling = STATUS_DISABLED.equals(nextStatus)
                 && "ADMIN".equals(String.valueOf(user.get("role")))
@@ -106,10 +203,6 @@ public class UserService {
         if (disabling && userDao.countEnabledAdminExcluding(((Number) user.get("id")).longValue()) <= 0) {
             throw new CommonException("至少需要保留一个启用的管理员账号");
         }
-    }
-
-    private static String normalizeStatus(String status) {
-        return "1".equals(status) || "true".equalsIgnoreCase(String.valueOf(status)) ? STATUS_ENABLED : STATUS_DISABLED;
     }
 
     private static List<Map<String, Object>> buildRoles() {

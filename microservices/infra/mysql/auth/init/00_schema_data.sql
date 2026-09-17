@@ -34,7 +34,7 @@ CREATE TABLE `sentinel_user` (
 
 LOCK TABLES `sentinel_user` WRITE;
 /*!40000 ALTER TABLE `sentinel_user` DISABLE KEYS */;
-INSERT INTO `sentinel_user` VALUES (1,'admin','$2b$10$zMgQzt/OgPHd7qZHdqb.LOo8yvm9ePV7nlNlvN1EWGwaZxvA.RkHu','系统管理员','ADMIN',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(2,'operator','$2b$10$bEjPnY/h/XVMiaxzMCIoAe2hHyYeRzlkAdHv9FM2neZzN2lXa8Yu2','运营专员','OPERATOR',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(3,'cs','$2b$10$Zs8/cCH2E6BBlmqKEcJ1vOm6Vkx8Kk89ufWSlzcY2U12vPE47V0XS','客服','CUSTOMER_SERVICE',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(4,'merchant','$2b$10$EFnvExNqe0eMYHay4Ym1RuS9xwcwhCBSd73OJJARy6bzbPJjJrENC','商家','MERCHANT',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(5,'finance','$2a$10$6kLzPvqf.Ev8jVD.HpYW8ejTSA3Rp3eECIracYmJH8uK1eORQH46K','财务','FINANCE',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0);
+INSERT INTO `sentinel_user` VALUES (1,'zhangwei','$2b$10$zMgQzt/OgPHd7qZHdqb.LOo8yvm9ePV7nlNlvN1EWGwaZxvA.RkHu','张伟','ADMIN',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(2,'liuyang','$2b$10$bEjPnY/h/XVMiaxzMCIoAe2hHyYeRzlkAdHv9FM2neZzN2lXa8Yu2','刘洋','OPERATOR',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(3,'wangfang','$2b$10$Zs8/cCH2E6BBlmqKEcJ1vOm6Vkx8Kk89ufWSlzcY2U12vPE47V0XS','王芳','CUSTOMER_SERVICE',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(4,'chenhao','$2b$10$EFnvExNqe0eMYHay4Ym1RuS9xwcwhCBSd73OJJARy6bzbPJjJrENC','陈浩','MERCHANT',1,'2026-09-05 09:03:14','2026-09-05 09:03:14',0),(5,'zhaomin','$2a$10$6kLzPvqf.Ev8jVD.HpYW8ejTSA3Rp3eECIracYmJH8uK1eORQH46K','赵敏','FINANCE',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0);
 /*!40000 ALTER TABLE `sentinel_user` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `role`;
@@ -56,7 +56,7 @@ CREATE TABLE `role` (
 
 LOCK TABLES `role` WRITE;
 /*!40000 ALTER TABLE `role` DISABLE KEYS */;
-INSERT INTO `role` VALUES (1,'ADMIN','管理员','平台全部权限',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(2,'OPERATOR','运营','订单履约/运单/售后/运营日常',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(3,'CUSTOMER_SERVICE','客服','售后/工单/物流跟踪/智能客服',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(4,'MERCHANT','商家','下单/查单/自己商品',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(5,'FINANCE','财务','账单/对账/报价',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14');
+INSERT INTO `role` VALUES (1,'ADMIN','管理员','平台全部权限',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(2,'OPERATOR','运营','订单履约/运单/售后/运营日常',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(3,'CUSTOMER_SERVICE','王芳','售后/工单/物流跟踪/智能客服',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(4,'MERCHANT','陈浩','下单/查单/自己商品',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14'),(5,'FINANCE','赵敏','账单/对账/报价',1,0,'2026-09-05 09:03:14','2026-09-05 09:03:14');
 /*!40000 ALTER TABLE `role` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `role_menu`;

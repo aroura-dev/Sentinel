@@ -9,14 +9,14 @@ USE `sentinel`;
 -- 1. 财务角色账号（bcrypt 哈希，明文 Finance@123）
 -- -----------------------------------------------------------
 INSERT INTO `sentinel_user` (`username`, `password`, `nickname`, `role`, `status`) VALUES
-('finance', '$2a$10$6kLzPvqf.Ev8jVD.HpYW8ejTSA3Rp3eECIracYmJH8uK1eORQH46K', '财务', 'FINANCE', 1)
+('zhaomin', '$2a$10$6kLzPvqf.Ev8jVD.HpYW8ejTSA3Rp3eECIracYmJH8uK1eORQH46K', '赵敏', 'FINANCE', 1)
 ON DUPLICATE KEY UPDATE `nickname` = VALUES(`nickname`), `role` = 'FINANCE', `status` = 1;
 
 -- -----------------------------------------------------------
 -- 2. 商家（卖家）主数据
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `merchant` (`id`, `merchant_code`, `merchant_name`, `user_id`, `contact_name`, `contact_phone`, `contact_email`, `country`, `status`) VALUES
-(1, 'MCH-0001', '深圳蓝鲸科技', (SELECT id FROM `sentinel_user` WHERE `username` = 'merchant' LIMIT 1), '王海', '13800138001', 'wh@lanjing.cn', 'CN', 1),
+(1, 'MCH-0001', '深圳蓝鲸科技', (SELECT id FROM `sentinel_user` WHERE `username` = 'chenhao' LIMIT 1), '王海', '13800138001', 'wh@lanjing.cn', 'CN', 1),
 (2, 'MCH-0002', '义乌百灵贸易', NULL, '李慧', '13800138002', 'lihui@bailing.cn', 'CN', 1),
 (3, 'MCH-0003', '广州启航电子', NULL, '陈航', '13800138003', 'chenhang@qihang.cn', 'CN', 1),
 (4, 'MCH-0004', '杭州云图科技', NULL, '赵琳', '13800138004', 'zhaolin@yuntu.cn', 'CN', 1)
@@ -202,9 +202,9 @@ INSERT IGNORE INTO `logistics_track` (`order_no`, `node`, `raw_status`, `raw_des
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `bill`
 (`id`, `bill_no`, `carrier_id`, `period_start`, `period_end`, `currency`, `total_amount`, `status`, `submitted_by`, `submitted_at`, `verified_by`, `verified_at`, `settled_by`, `settled_at`) VALUES
-(1, 'BILL-AIRGO-202608', 2, '2026-08-01', '2026-08-31', 'CNY', 341.90, 'SUBMITTED', 'finance', DATE_SUB(NOW(), INTERVAL 2 DAY), NULL, NULL, NULL, NULL),
+(1, 'BILL-AIRGO-202608', 2, '2026-08-01', '2026-08-31', 'CNY', 341.90, 'SUBMITTED', 'zhaomin', DATE_SUB(NOW(), INTERVAL 2 DAY), NULL, NULL, NULL, NULL),
 (2, 'BILL-CARGOWAY-202608', 1, '2026-08-01', '2026-08-31', 'CNY', 195.00, 'DRAFT', NULL, NULL, NULL, NULL, NULL, NULL),
-(3, 'BILL-SEAGO-202607', 3, '2026-07-01', '2026-07-31', 'CNY', 54.00, 'SETTLED', 'finance', DATE_SUB(NOW(), INTERVAL 20 DAY), 'finance', DATE_SUB(NOW(), INTERVAL 18 DAY), 'finance', DATE_SUB(NOW(), INTERVAL 15 DAY))
+(3, 'BILL-SEAGO-202607', 3, '2026-07-01', '2026-07-31', 'CNY', 54.00, 'SETTLED', 'zhaomin', DATE_SUB(NOW(), INTERVAL 20 DAY), 'zhaomin', DATE_SUB(NOW(), INTERVAL 18 DAY), 'zhaomin', DATE_SUB(NOW(), INTERVAL 15 DAY))
 ON DUPLICATE KEY UPDATE `total_amount` = VALUES(`total_amount`), `status` = VALUES(`status`);
 
 INSERT IGNORE INTO `bill_item`

@@ -10,13 +10,13 @@ describe('auth store（RBAC 会话）', () => {
 
   it('setAuth 持久化 token/username/role/nickname', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'admin', 'ADMIN', '系统管理员')
+    store.setAuth('token-1', 'zhangwei', 'ADMIN', '张伟')
     expect(store.token).toBe('token-1')
-    expect(store.username).toBe('admin')
+    expect(store.username).toBe('zhangwei')
     expect(store.role).toBe('ADMIN')
     expect(localStorage.getItem('sentinel_token')).toBe('token-1')
     expect(localStorage.getItem('sentinel_role')).toBe('ADMIN')
-    expect(localStorage.getItem('sentinel_nickname')).toBe('系统管理员')
+    expect(localStorage.getItem('sentinel_nickname')).toBe('张伟')
   })
 
   it('setAuth 未传角色时角色为空（向后兼容旧登录）', () => {
@@ -27,7 +27,7 @@ describe('auth store（RBAC 会话）', () => {
 
   it('logout 清空所有会话 key', () => {
     const store = useAuthStore()
-    store.setAuth('token-1', 'admin', 'ADMIN')
+    store.setAuth('token-1', 'zhangwei', 'ADMIN')
     store.logout()
     expect(store.token).toBe('')
     expect(store.role).toBe('')

@@ -3,7 +3,7 @@
 #   1. mvn -ntp -pl sentinel-web -am -DskipTests package
 #   2. docker compose -f docker-compose.sentinel.yml up -d --build
 # 首次启动且 MySQL 数据卷为空时，会按依赖顺序执行 doc/sql。
-# 访问：http://localhost:5173（admin / Admin@123）
+# 访问：http://localhost:5173（zhangwei / Admin@123）
 name: sentinel
 
 services:

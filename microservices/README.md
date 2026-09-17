@@ -89,7 +89,7 @@ SMOKE_DOCKER=1 bash infra/tools/smoke_closed_loop.sh
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
-  -d "username=admin&password=Admin@123" \
+  -d "username=zhangwei&password=Admin@123" \
   | grep -oE '"token":"[a-f0-9]+"' | cut -d'"' -f4)
 
 curl -s -X POST \
@@ -97,7 +97,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-默认账号：`admin / Admin@123`。
+默认账号：`zhangwei / Admin@123`。
 
 ## 前端
 

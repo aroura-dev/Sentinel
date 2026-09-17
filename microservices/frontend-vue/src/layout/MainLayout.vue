@@ -108,9 +108,9 @@
           </el-popover>
           <div class="header-user">
             <el-tooltip :content="userTip" placement="bottom" popper-class="header-tip">
-              <button class="icon-btn" type="button" aria-label="用户">
-                <el-icon :size="18"><User /></el-icon>
-              </button>
+              <el-avatar :size="30" class="header-avatar" :src="authStore.avatar || undefined" :style="authStore.avatar ? {} : avatarStyle">
+                <span v-if="!authStore.avatar">{{ avatarText }}</span>
+              </el-avatar>
             </el-tooltip>
             <el-tooltip content="退出登录" placement="bottom" popper-class="header-tip">
               <button class="icon-btn" type="button" aria-label="退出登录" @click="handleLogout">
@@ -155,7 +155,7 @@ import { computed, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../store/auth'
-import { logout, globalSearch, notifList, myPermissions } from '../api'
+import { logout, globalSearch, notifList, myPermissions, me } from '../api'
 import { MENU, ROLES, visibleMenu, filterMenuByPaths, moduleOfPath } from '../utils/menu'
 import LogoMark from '../components/LogoMark.vue'
 import ModuleStats from '../components/ModuleStats.vue'
@@ -236,7 +236,16 @@ function nodeLabel(node) {
 function statusType(s) { return { SENT: 'success', FAILED: 'danger', PENDING: 'warning' }[s] || 'info' }
 
 watch(() => route.path, () => { loadNotifs() })
+async function syncProfile() {
+  try {
+    const user = await me()
+    if (user) authStore.setProfile(user.username, user.role, user.nickname, user.avatar)
+  } catch (e) {
+    // 用户资料刷新失败不阻塞页面
+  }
+}
 onMounted(async () => {
+  syncProfile()
   loadNotifs()
   notifTimer = setInterval(loadNotifs, 60000)
   if (!authStore.permissions.length) {
@@ -288,6 +297,21 @@ const ROLE_LABELS = {
 const roleLabel = computed(() => ROLE_LABELS[authStore.role] || authStore.role)
 // 用户图标悬停提示：只显示一个（昵称优先，回退用户名）
 const userTip = computed(() => authStore.nickname || authStore.username || '')
+const avatarText = computed(() => {
+  const name = authStore.nickname || authStore.username || '用户'
+  return name.slice(0, 2).toUpperCase()
+})
+const avatarStyle = computed(() => {
+  const seed = authStore.username || authStore.nickname || 'user'
+  let hash = 0
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) % 360
+  return {
+    background: `linear-gradient(135deg, hsl(${hash}, 68%, 42%), hsl(${(hash + 38) % 360}, 76%, 58%))`,
+    color: '#fff',
+    fontWeight: 600,
+    flex: 'none'
+  }
+})
 
 // 面包屑：父模块 / 当前子页面；父级可点跳模块默认页，末级为当前页
 const breadcrumbs = computed(() => {
@@ -540,6 +564,16 @@ async function handleLogout() {
 .si-sub {
   font-size: 12px;
   color: #86909c;
+}
+.header-avatar {
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.14);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.header-avatar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 9px rgba(16, 24, 40, 0.18);
 }
 .header-user {
   display: flex;

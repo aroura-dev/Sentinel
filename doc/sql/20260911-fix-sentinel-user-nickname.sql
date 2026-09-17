@@ -4,8 +4,8 @@
 SET NAMES utf8mb4;
 USE `sentinel`;
 
-UPDATE `sentinel_user` SET `nickname` = '系统管理员' WHERE `username` = 'admin';
-UPDATE `sentinel_user` SET `nickname` = '运营专员'   WHERE `username` = 'operator';
-UPDATE `sentinel_user` SET `nickname` = '客服'       WHERE `username` = 'cs';
-UPDATE `sentinel_user` SET `nickname` = '商家'       WHERE `username` = 'merchant';
-UPDATE `sentinel_user` SET `nickname` = '财务'       WHERE `username` = 'finance';
+UPDATE `sentinel_user` SET `nickname` = '张伟' WHERE `username` = 'zhangwei';
+UPDATE `sentinel_user` SET `nickname` = '刘洋' WHERE `username` = 'liuyang';
+UPDATE `sentinel_user` SET `nickname` = '王芳' WHERE `username` = 'wangfang';
+UPDATE `sentinel_user` SET `nickname` = '陈浩' WHERE `username` = 'chenhao';
+UPDATE `sentinel_user` SET `nickname` = '赵敏' WHERE `username` = 'zhaomin';

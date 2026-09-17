@@ -36,14 +36,14 @@
   <div class="card">
     <div class="row" style="justify-content:space-between">
       <div class="row" id="acctBtns">
-        <button class="acct" data-u="admin" data-p="Admin@123">admin</button>
-        <button class="acct" data-u="operator" data-p="Operator@123">operator</button>
-        <button class="acct" data-u="merchant" data-p="Merchant@123">merchant</button>
-        <button class="acct" data-u="cs" data-p="Cs@123">cs</button>
-        <button class="acct" data-u="finance" data-p="Finance@123">finance</button>
+        <button class="acct" data-u="zhangwei" data-p="Admin@123">张伟</button>
+        <button class="acct" data-u="liuyang" data-p="Operator@123">刘洋</button>
+        <button class="acct" data-u="chenhao" data-p="Merchant@123">陈浩</button>
+        <button class="acct" data-u="wangfang" data-p="Cs@123">王芳</button>
+        <button class="acct" data-u="zhaomin" data-p="Finance@123">赵敏</button>
       </div>
       <div class="row">
-        <input id="u" placeholder="用户名" value="admin">
+        <input id="u" placeholder="用户名" value="zhangwei">
         <input id="p" type="password" placeholder="密码" value="Admin@123">
         <button class="btn-ok" onclick="login()">登录</button>
       </div>
@@ -53,7 +53,7 @@
 
   <div class="card">
     <div class="row" style="justify-content:space-between">
-      <div><b>订单列表</b>（验证 MERCHANT 数据隔离：admin 42 条 / merchant 3 条）
+      <div><b>订单列表</b>（验证 MERCHANT 数据隔离：zhangwei 42 条 / chenhao 3 条）
         <span id="scopeBadge"></span>
       </div>
       <button class="btn-line" onclick="loadOrders()">刷新</button>

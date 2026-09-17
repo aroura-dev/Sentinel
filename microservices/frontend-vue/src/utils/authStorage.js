@@ -1,6 +1,6 @@
 // 登录态存储：记住我(勾选)→localStorage(跨会话)；不勾→sessionStorage(关浏览器即退出)
 // 读取时两处都查，保证会话期间与刷新后一致。
-const AUTH_KEYS = ['sentinel_token', 'sentinel_username', 'sentinel_role', 'sentinel_nickname', 'sentinel_permissions']
+const AUTH_KEYS = ['sentinel_token', 'sentinel_username', 'sentinel_role', 'sentinel_nickname', 'sentinel_avatar', 'sentinel_permissions']
 
 export function readKey(key) {
   return sessionStorage.getItem(key) ?? localStorage.getItem(key)
@@ -34,6 +34,7 @@ export function writeAuth(auth, remember) {
   setOne(store, 'sentinel_username', auth.username)
   setOne(store, 'sentinel_role', auth.role)
   setOne(store, 'sentinel_nickname', auth.nickname)
+  setOne(store, 'sentinel_avatar', auth.avatar)
 }
 
 export function writePerms(paths) {

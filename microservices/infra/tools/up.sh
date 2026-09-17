@@ -36,7 +36,7 @@ echo "== 4/5 起整套 =="
 
 echo "== 5/5 等网关并验收 =="
 for i in $(seq 1 60); do
-  if curl -sf -o /dev/null -X POST http://localhost:8080/api/auth/login -d 'username=admin&password=Admin@123' 2>/dev/null; then
+  if curl -sf -o /dev/null -X POST http://localhost:8080/api/auth/login -d 'username=zhangwei&password=Admin@123' 2>/dev/null; then
     echo "gateway ready ~$((i*5))s"; break
   fi
   sleep 5
