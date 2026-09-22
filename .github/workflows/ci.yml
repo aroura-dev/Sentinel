@@ -99,3 +99,65 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose -f docker-compose.sentinel.yml down -v
+
+  microservices-smoke:
+    name: Microservices (build + deployment smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: microservices
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Build service jars
+        run: |
+          mvn -B -ntp -N install -q
+          mvn -B -ntp -pl services/auth-service,services/msg-service,services/logistics-service,services/agent-service,gateway -am package -DskipTests
+          mkdir -p dist
+          cp services/auth-service/target/auth-service.jar dist/
+          cp services/msg-service/target/msg-service.jar dist/
+          cp services/logistics-service/target/logistics-service.jar dist/
+          cp services/agent-service/target/agent-service.jar dist/
+          cp gateway/target/sentinel-gateway.jar dist/
+
+      - name: Build and start stack
+        working-directory: microservices/infra/docker
+        run: |
+          docker compose -f compose.infra.yml build
+          docker compose -f compose.infra.yml up -d
+
+      # 注意：登录失败时服务返回 HTTP 200 + {"status":"A0001"}，
+      # 因此不能只用 curl -f 判就绪，必须校验响应体里的 "status":"0"。
+      - name: Wait for gateway login
+        run: |
+          for i in $(seq 1 60); do
+            body=$(curl -s -m 10 -X POST http://localhost:8080/api/auth/login \
+              --data-urlencode 'username=张伟' --data-urlencode 'password=Admin@123' || true)
+            if echo "$body" | grep -q '"status":"0"'; then
+              echo "gateway login ok after ~$((i*5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "gateway did not accept login within timeout"
+          exit 1
+
+      - name: End-to-end smoke
+        working-directory: microservices/infra/tools
+        run: SMOKE_DOCKER=1 bash smoke_closed_loop.sh
+
+      - name: Dump service logs on failure
+        if: failure()
+        working-directory: microservices/infra/docker
+        run: docker compose -f compose.infra.yml logs --no-color --tail 200
+
+      - name: Tear down
+        if: always()
+        working-directory: microservices/infra/docker
+        run: docker compose -f compose.infra.yml down -v --remove-orphans
