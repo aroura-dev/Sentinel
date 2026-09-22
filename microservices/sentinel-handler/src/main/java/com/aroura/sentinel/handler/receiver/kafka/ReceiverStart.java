@@ -15,6 +15,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListenerAnnotationBeanPostProcessor;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Method;
@@ -90,7 +91,22 @@ public class ReceiverStart {
                                                                           @Value("${sentinel.business.tagId.value}") String tagIdValue) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
+        // 被 tag 过滤掉的消息无需处理，由容器直接提交
         factory.setAckDiscarded(true);
+
+        /**
+         * 位移提交语义（此前用的是默认自动提交，存在丢消息的窗口）：
+         * <p>
+         * 监听器把任务丢进线程池后就返回了，而自动提交发生在监听器返回时 ——
+         * 等于消息还没发出去就承认它处理完了。进程若在两者之间崩溃，消息永久丢失。
+         * <p>
+         * 改为 MANUAL_IMMEDIATE：由任务执行完毕的回调提交（见 ConsumeServiceImpl）。
+         * 同时必须开 asyncAcks —— 提交发生在业务线程池里而非监听线程上，
+         * 缺少它时跨线程 commitSync 是未定义行为；开启后容器按位移顺序安全提交。
+         */
+        ContainerProperties containerProperties = factory.getContainerProperties();
+        containerProperties.setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        containerProperties.setAsyncAcks(true);
 
         factory.setRecordFilterStrategy(consumerRecord -> {
             if (Optional.ofNullable(consumerRecord.value()).isPresent()) {
