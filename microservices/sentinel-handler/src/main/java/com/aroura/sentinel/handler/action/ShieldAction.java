@@ -54,14 +54,15 @@ public class ShieldAction implements BusinessProcess<TaskInfo> {
             if (ShieldType.NIGHT_SHIELD.getCode().equals(taskInfo.getShieldType())) {
                 logUtils.print(AnchorInfo.builder().state(AnchorState.NIGHT_SHIELD.getCode())
                         .bizId(taskInfo.getBizId()).messageId(taskInfo.getMessageId()).businessId(taskInfo.getBusinessId()).ids(taskInfo.getReceiver()).build());
+                context.setNeedBreak(true);
             }
             if (ShieldType.NIGHT_SHIELD_BUT_NEXT_DAY_SEND.getCode().equals(taskInfo.getShieldType())) {
                 redisUtils.lPush(NIGHT_SHIELD_BUT_NEXT_DAY_SEND_KEY, JSON.toJSONString(taskInfo,
                                 JSONWriter.Feature.WriteClassName),
                         SECONDS_OF_A_DAY);
                 logUtils.print(AnchorInfo.builder().state(AnchorState.NIGHT_SHIELD_NEXT_SEND.getCode()).bizId(taskInfo.getBizId()).messageId(taskInfo.getMessageId()).businessId(taskInfo.getBusinessId()).ids(taskInfo.getReceiver()).build());
+                context.setNeedBreak(true);
             }
-            context.setNeedBreak(true);
         }
 
     }
