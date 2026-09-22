@@ -1,0 +1,53 @@
+# ============================================================
+# 本地开发覆盖文件 —— 把调试端口加回来，但**只绑定回环地址**。
+#
+# 不要在生产使用本文件。
+#
+# 基座 compose.infra.yml 刻意不发布任何调试端口：下游服务无条件信任
+# X-User-Name / X-User-Role 头，业务服务端口一旦对宿主可达，伪造这两个头
+# 即可绕过网关鉴权（agent-service 的 /internal/** 与 msg-service 的 /send
+# 更是完全不在鉴权范围内）。
+#
+# 这里一律绑 127.0.0.1 而非 0.0.0.0 —— 只有本机能连，同局域网的其他机器连不上。
+# 这也正好覆盖了宿主机直跑 jar、用 mysql 客户端查库等本地联调场景。
+#
+# 用法：
+#   docker compose -f compose.infra.yml -f compose.dev.yml up -d
+#   docker compose -f compose.infra.yml -f compose.dev.yml ps
+#
+# 生产（默认，无调试端口）：
+#   docker compose -f compose.infra.yml up -d
+# ============================================================
+services:
+  zookeeper:
+    ports: ["127.0.0.1:2181:2181"]
+
+  kafka:
+    ports: ["127.0.0.1:29092:29092"]
+
+  redis:
+    ports: ["127.0.0.1:6381:6379"]
+
+  mysql-auth:
+    ports: ["127.0.0.1:33061:3306"]
+
+  mysql-msg:
+    ports: ["127.0.0.1:33062:3306"]
+
+  mysql-logistics:
+    ports: ["127.0.0.1:33063:3306"]
+
+  mysql-agent:
+    ports: ["127.0.0.1:33064:3306"]
+
+  auth-service:
+    ports: ["127.0.0.1:8081:8081"]
+
+  msg-service:
+    ports: ["127.0.0.1:8082:8082"]
+
+  logistics-service:
+    ports: ["127.0.0.1:8083:8083"]
+
+  agent-service:
+    ports: ["127.0.0.1:8084:8084"]

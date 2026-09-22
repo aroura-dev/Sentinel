@@ -73,6 +73,27 @@ bash infra/tools/down.sh
 bash infra/tools/down.sh -v
 ```
 
+### 端口暴露面
+
+默认起的是**安全形态**：只发布 `8080`（网关）与 `5175`（演示台），业务服务与数据库一律不发布到宿主机。
+
+这不是为了好看 —— 下游服务**无条件信任** `X-User-Name` / `X-User-Role` 头。一旦 `8081-8084` 对宿主机可达，任何人伪造这两个头直连业务服务就能完全绕过网关鉴权；`agent-service` 的 `/internal/**` 与 `msg-service` 的 `/send` 更是连 `/api` 前缀都没有，不在任何鉴权拦截范围内。
+
+本地调试需要直连这些端口（宿主 mysql 客户端、直接调 8081-8084）时：
+
+```bash
+DEV_PORTS=1 bash infra/tools/up.sh
+```
+
+叠加的 `compose.dev.yml` 会把调试端口加回来，但**只绑定 `127.0.0.1`** —— 同一局域网内的其他机器依然连不上。也可以手动叠加：
+
+```bash
+cd infra/docker
+docker compose -f compose.infra.yml -f compose.dev.yml up -d
+```
+
+> 生产部署只应暴露网关端口；如需对外提供服务，应在网关前加 TLS 终结与网络隔离。
+
 ## Smoke 验收
 
 ```bash
