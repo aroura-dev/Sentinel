@@ -30,7 +30,7 @@ CREATE TABLE `message_template` (
   `send_channel` int(10) NOT NULL DEFAULT '0' COMMENT '消息发送渠道：10.IM 20.Push 30.短信 40.Email 50.公众号 60.小程序 70.企业微信 80.钉钉机器人 90.钉钉工作通知 100.企业微信机器人 110.飞书机器人 110. 飞书应用消息 ',
   `template_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '10.运营类 20.技术类接口调用',
   `msg_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '10.通知类消息 20.营销类消息 30.验证码类消息',
-  `shield_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '10.夜间不屏蔽 20.夜间屏蔽 30.夜间屏蔽(次日早上9点发送)',
+  `shield_type` tinyint(4) NOT NULL DEFAULT '10' COMMENT '10.夜间不屏蔽 20.夜间屏蔽 30.夜间屏蔽(次日早上9点发送)',
   `msg_content` varchar(4096) NOT NULL DEFAULT '' COMMENT '消息内容 占位符用{$var}表示',
   `send_account` int(10) NOT NULL DEFAULT '0' COMMENT '发送账号 一个渠道下可存在多个账号',
   `creator` varchar(45) NOT NULL DEFAULT '' COMMENT '创建者',
@@ -48,7 +48,7 @@ CREATE TABLE `message_template` (
 
 LOCK TABLES `message_template` WRITE;
 /*!40000 ALTER TABLE `message_template` DISABLE KEYS */;
-INSERT INTO `message_template` VALUES (3,'Sentinel 物流通知',20,NULL,30,NULL,NULL,NULL,10,30,10,10,0,'{\"content\":\"您的订单 {$orderNo} 物流状态已更新，请及时关注\"}',9001,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1001,'sentinel:IMPORT_CUSTOMS:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,0,'您好，您的包裹已到达目的地分拨中心，正在分拣，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1004,'sentinel:LAST_MILE:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,0,'您好，您的包裹已进入末端派送，快递员将很快与您联系。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1007,'sentinel:DELIVERED:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,0,'您的包裹已签收，感谢您的信任与支持！',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1010,'sentinel:CUSTOMS_DELAY:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,0,'您好，您的包裹在中转环节出现延误，我们正在加紧处理，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194);
+INSERT INTO `message_template` VALUES (3,'Sentinel 物流通知',20,NULL,30,NULL,NULL,NULL,10,30,10,10,10,'{\"content\":\"您的订单 {$orderNo} 物流状态已更新，请及时关注\"}',9001,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1001,'sentinel:IMPORT_CUSTOMS:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹已到达目的地分拨中心，正在分拣，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1004,'sentinel:LAST_MILE:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹已进入末端派送，快递员将很快与您联系。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1007,'sentinel:DELIVERED:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您的包裹已签收，感谢您的信任与支持！',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1010,'sentinel:CUSTOMS_DELAY:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹在中转环节出现延误，我们正在加紧处理，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194);
 /*!40000 ALTER TABLE `message_template` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `sms_record`;
