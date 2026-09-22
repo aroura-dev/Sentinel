@@ -20,11 +20,29 @@ services:
   zookeeper:
     image: zookeeper:3.8.4
     container_name: sentinelms-zookeeper
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   kafka:
     image: wurstmeister/kafka:2.13-2.6.0
     container_name: sentinelms-kafka
-    depends_on: [zookeeper]
+    # broker id 固定为 1。若 ZooKeeper 里残留着上一个 kafka 容器的注册节点
+    # （容器被重建而 zookeeper 未被重建时会出现），启动会以 NodeExists 致命退出，
+    # 进而拖垮 msg-service。restart 让其自动重试，旧会话过期后即可注册成功。
+    restart: unless-stopped
+    depends_on:
+      zookeeper: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     environment:
       KAFKA_BROKER_ID: 1
       # 双 listener：INTERNAL(kafka:9092，供容器内自连/服务互连) + EXTERNAL(127.0.0.1:29092，供宿主机 jar 联调)
@@ -40,6 +58,7 @@ services:
     image: redis:6-alpine
     container_name: sentinelms-redis
     command: ["redis-server", "--requirepass", "sentinel"]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "sentinel", "ping"]
       interval: 5s
@@ -49,6 +68,7 @@ services:
   mysql-auth:
     image: mysql:5.7
     container_name: sentinelms-mysql-auth
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123_A
       MYSQL_ROOT_HOST: '%'
@@ -65,6 +85,7 @@ services:
   mysql-msg:
     image: mysql:5.7
     container_name: sentinelms-mysql-msg
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123_A
       MYSQL_ROOT_HOST: '%'
@@ -81,6 +102,7 @@ services:
   mysql-logistics:
     image: mysql:5.7
     container_name: sentinelms-mysql-logistics
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123_A
       MYSQL_ROOT_HOST: '%'
@@ -97,6 +119,7 @@ services:
   mysql-agent:
     image: mysql:5.7
     container_name: sentinelms-mysql-agent
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123_A
       MYSQL_ROOT_HOST: '%'
@@ -114,13 +137,17 @@ services:
   sms-stub:
     image: node:18-alpine
     container_name: sentinelms-sms-stub
+    restart: unless-stopped
     command: ["node", "-e", "require('http').createServer((q,s)=>{let b='';q.on('data',c=>b+=c);q.on('end',()=>{const p=new URLSearchParams(b),d=(p.get('mobile')||'').split(',').filter(Boolean).map((m,i)=>({mobile:m,sid:'s'+i,count:1,code:0,msg:'ok'}));s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({code:0,data:d}))})}).listen(18999,'0.0.0.0')"]
 
   auth-service:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.auth-service}
     container_name: sentinelms-auth-service
+    restart: unless-stopped
+    # auth-service 强依赖 Redis（会话存储）却原本不等待它就绪。
     depends_on:
       mysql-auth: {condition: service_healthy}
+      redis: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-auth:3306/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
@@ -133,12 +160,21 @@ services:
       SMS_ENGINE_TEMPLATE_ID: "1011"
       # 验证码不回传接口（从 Redis/短信查收，手动输入）；本地联调需要时临时置 true
       SMS_DEV_RETURN_CODE: "false"
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 512M}
 
   msg-service:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.msg-service}
     container_name: sentinelms-msg-service
+    restart: unless-stopped
+    # msg-service 强依赖 Kafka（消费管道）与 Redis（去重）却原本只等 MySQL：
+    # Kafka 未就绪时启动期即抛 "No resolvable bootstrap urls given in bootstrap.servers"
+    # 并直接退出，连带 logistics 的通知下发全部 Connection refused。
     depends_on:
       mysql-msg: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-msg:3306/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
@@ -147,10 +183,15 @@ services:
       SPRING_REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: sentinel
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 1G}
 
   logistics-service:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.logistics-service}
     container_name: sentinelms-logistics-service
+    restart: unless-stopped
+    # 不等待 agent/msg：调它们失败会降级（默认文案 / 标 FAILED），不是硬依赖。
     depends_on:
       mysql-logistics: {condition: service_healthy}
     environment:
@@ -159,20 +200,28 @@ services:
       SPRING_DATASOURCE_PASSWORD: root123_A
       SERVICE_AGENT_URL: http://agent-service:8084
       SERVICE_MSG_URL: http://msg-service:8082
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
 
   agent-service:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.agent-service}
     container_name: sentinelms-agent-service
+    restart: unless-stopped
     depends_on:
       mysql-agent: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-agent:3306/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root123_A
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 512M}
 
   gateway:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.gateway}
     container_name: sentinelms-gateway
+    restart: unless-stopped
     environment:
       AUTH_URI: http://auth-service:8081
       LOGISTICS_URI: http://logistics-service:8083
@@ -180,17 +229,23 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: sentinel
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
     ports: ["8080:8080"]
+    # 网关每个请求都要查 Redis 会话，且路由到 auth/logistics，三者都须就绪。
     depends_on:
-      - auth-service
-      - logistics-service
+      redis: {condition: service_healthy}
+      auth-service: {condition: service_healthy}
+      logistics-service: {condition: service_healthy}
 
   frontend:
     build: {context: ../.., dockerfile: infra/docker/Dockerfile.frontend}
     container_name: sentinelms-frontend
+    restart: unless-stopped
     ports: ["5175:5175"]
     depends_on:
-      - gateway
+      gateway: {condition: service_started}
 
 volumes:
   auth-mysql-data:

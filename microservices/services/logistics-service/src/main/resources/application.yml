@@ -1,5 +1,19 @@
 server:
   port: 8083
+  # 收到 SIGTERM 后先处理完在途请求再退出（默认超时 30s），避免发布时丢请求。
+  shutdown: graceful
+
+# 健康检查：actuator 挂在 /actuator（不在 /api 前缀下），因此不经网关暴露；
+# 配合端口收敛（见 infra/docker/compose.infra.yml），仅 compose 内部网络可达，
+# 供容器 healthcheck 与编排就绪判断使用。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
 
 spring:
   application:

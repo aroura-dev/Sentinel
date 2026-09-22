@@ -1,5 +1,27 @@
 server:
   port: 8081
+  # 收到 SIGTERM 后先处理完在途请求再退出（默认超时 30s），避免发布时丢请求。
+  shutdown: graceful
+
+# 健康检查：actuator 挂在 /actuator（不在 /api 前缀下），因此不经网关暴露；
+# 配合端口收敛（见 infra/docker/compose.infra.yml），仅 compose 内部网络可达，
+# 供容器 healthcheck 与编排就绪判断使用。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# springfox 3.0.0 与 Boot 2.6+ 不兼容：它启动时扫描全部 RequestMapping，
+# 遇到 actuator 注册的 WebMvcEndpointHandlerMapping 会抛
+# NullPointerException(PatternsRequestCondition.condition is null)，导致上下文刷新失败、服务起不来。
+# msg-service 早已按此禁用；这里同样禁用（swagger 在本项目未使用）。
+springfox:
+  documentation:
+    enabled: false
 
 spring:
   application:

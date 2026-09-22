@@ -1,6 +1,20 @@
 FROM eclipse-temurin:17-jre
+
 WORKDIR /app
-ENV TZ=Asia/Shanghai JAVA_OPTS=""
+# 容器内存感知的堆参数：不设堆上限时 JVM 按宿主机内存推算，在容器里容易 OOM。
+ENV TZ=Asia/Shanghai \
+    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport"
 COPY dist/auth-service.jar /app/auth-service.jar
 EXPOSE 8081
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/auth-service.jar"]
+
+# 健康探测用 bash 内建的 /dev/tcp，**不安装 curl**：
+# temurin 的 JRE 镜像基于 Ubuntu，其 apt 源在受限网络下经常不可达，
+# 装 curl 会让每次镜像构建都依赖外部包源（实测会卡在 apt-get update 重试）。
+# TCP 可连接即代表 Tomcat 已完成端口绑定；更深入的健康（DB/Redis）由各服务
+# 暴露的 /actuator/health 提供。
+HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=6 \
+  CMD bash -c 'exec 3<>/dev/tcp/localhost/8081' || exit 1
+
+# 必须用 exec：否则 PID 1 是 sh，docker stop 的 SIGTERM 到不了 JVM，
+# server.shutdown=graceful 永远不会生效（在途请求会被硬杀）。
+ENTRYPOINT ["sh","-c","exec java $JAVA_OPTS -jar /app/auth-service.jar"]
