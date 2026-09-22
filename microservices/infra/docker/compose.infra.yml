@@ -271,8 +271,24 @@ services:
     depends_on:
       gateway: {condition: service_started}
 
+  # ---------- 可选：指标抓取 ----------
+  # 默认不启动（profiles 未启用），基础栈保持精简，CI 也不为此多拉一个镜像。
+  # 启用：docker compose -f compose.infra.yml --profile observability up -d
+  # 抓取目标见 prometheus/prometheus.yml；各服务指标在 /actuator/prometheus。
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: sentinelms-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    # 只绑回环：这是运维查询界面，不该对局域网或公网可达。
+    ports: ["127.0.0.1:9090:9090"]
+
 volumes:
   auth-mysql-data:
   msg-mysql-data:
   logistics-mysql-data:
   agent-mysql-data:
+  prometheus-data:

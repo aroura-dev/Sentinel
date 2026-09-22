@@ -1,0 +1,36 @@
+# ============================================================
+# Prometheus 抓取配置（可选组件，通过 compose profile 启用）
+#
+#   docker compose -f compose.infra.yml --profile observability up -d
+#
+# 默认不启动：基础栈保持精简，CI 也不为此多拉一个镜像。
+# 需要看指标时再开，或在生产环境把它替换成运维侧已有的 Prometheus，
+# 只需照抄下面的抓取目标即可。
+#
+# 各服务的指标在 /actuator/prometheus，均带 application 标签区分来源；
+# 该端点不在 /api 前缀下，因此不经网关暴露，只在本网络内可达。
+# ============================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 网关：请求量、状态码、路由耗时的主要来源
+  - job_name: sentinel-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["gateway:8080"]
+
+  # 四个业务服务：JVM、HTTP、DataSource、以及各自的业务计数器
+  - job_name: sentinel-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - "auth-service:8081"
+          - "msg-service:8082"
+          - "logistics-service:8083"
+          - "agent-service:8084"
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

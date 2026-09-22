@@ -7,10 +7,14 @@ server:
 # 配合端口收敛（见 infra/docker/compose.infra.yml），仅 compose 内部网络可达，
 # 供容器 healthcheck 与编排就绪判断使用。
 management:
+  # 指标带服务名标签：多个服务汇聚到 Prometheus 后要能区分来源。
+  metrics:
+    tags:
+      application: ${spring.application.name}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
