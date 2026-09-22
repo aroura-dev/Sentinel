@@ -83,7 +83,7 @@ services:
       - ../mysql/auth/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 30
 
@@ -105,7 +105,7 @@ services:
       - ../mysql/msg/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 30
 
@@ -127,7 +127,7 @@ services:
       - ../mysql/logistics/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 30
 
@@ -149,7 +149,7 @@ services:
       - ../mysql/agent/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 30
 

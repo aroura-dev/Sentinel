@@ -133,11 +133,19 @@ jobs:
       - name: Prepare environment file
         run: cp infra/docker/.env.example infra/docker/.env
 
-      - name: Build and start stack
+      # build 与 up 拆成两步：合成一步时失败只报 "exit code 1"，无法判断是构建还是启动。
+      - name: Build images
         working-directory: microservices/infra/docker
-        run: |
-          docker compose -f compose.infra.yml build
-          docker compose -f compose.infra.yml up -d
+        run: docker compose -f compose.infra.yml build
+
+      - name: Start stack
+        working-directory: microservices/infra/docker
+        run: docker compose -f compose.infra.yml up -d
+
+      - name: Show container states
+        if: always()
+        working-directory: microservices/infra/docker
+        run: docker compose -f compose.infra.yml ps -a
 
       # 注意：登录失败时服务返回 HTTP 200 + {"status":"A0001"}，
       # 因此不能只用 curl -f 判就绪，必须校验响应体里的 "status":"0"。
@@ -159,10 +167,20 @@ jobs:
         working-directory: microservices/infra/tools
         run: SMOKE_DOCKER=1 bash smoke_closed_loop.sh
 
+      # 失败时把「谁退了、为什么退」打出来 —— 容器 exited 的退出码与末尾日志是定位关键。
       - name: Dump service logs on failure
         if: failure()
         working-directory: microservices/infra/docker
-        run: docker compose -f compose.infra.yml logs --no-color --tail 200
+        run: |
+          echo "===== container states ====="
+          docker compose -f compose.infra.yml ps -a
+          echo "===== exited containers ====="
+          for c in $(docker ps -a --filter "name=sentinelms-" --filter "status=exited" --format '{{.Names}}'); do
+            echo "----- $c (exit $(docker inspect -f '{{.State.ExitCode}}' "$c")) -----"
+            docker logs --no-color --tail 100 "$c" 2>&1
+          done
+          echo "===== all logs (tail) ====="
+          docker compose -f compose.infra.yml logs --no-color --tail 120
 
       - name: Tear down
         if: always()

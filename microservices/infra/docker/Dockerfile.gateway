@@ -12,7 +12,10 @@ EXPOSE 8080
 # 装 curl 会让每次镜像构建都依赖外部包源（实测会卡在 apt-get update 重试）。
 # TCP 可连接即代表 Tomcat 已完成端口绑定；更深入的健康（DB/Redis）由各服务
 # 暴露的 /actuator/health 提供。
-HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=6 \
+#
+# start-period 给到 120s：启动时要先跑 Flyway 迁移（含 seed 数据），
+# 冷环境下（CI runner）明显慢于本地，预算太紧会误判为 unhealthy 而拖垮依赖它的服务。
+HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=12 \
   CMD bash -c 'exec 3<>/dev/tcp/localhost/8080' || exit 1
 
 # 必须用 exec：否则 PID 1 是 sh，docker stop 的 SIGTERM 到不了 JVM，
