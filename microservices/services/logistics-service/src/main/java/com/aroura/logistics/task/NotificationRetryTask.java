@@ -59,6 +59,13 @@ public class NotificationRetryTask {
      */
     @Value("${notify.retry.max-attempts:5}")
     private int maxAttempts;
+    /**
+     * 认领租约（秒）：认领后记录在此时段内不会被其他实例捞起。
+     * 必须大于单次投递耗时（REST 读超时 8s），否则同一条会被重复投递；
+     * 也不必过大 —— 认领方若崩溃，租约到期后记录会重新可领，无需额外清理。
+     */
+    @Value("${notify.retry.claim-lease-seconds:60}")
+    private int claimLeaseSeconds;
 
     @Scheduled(fixedDelayString = "${notify.retry.scan-interval-ms:60000}", initialDelayString = "${notify.retry.initial-delay-ms:30000}")
     public void compensate() {
@@ -87,14 +94,23 @@ public class NotificationRetryTask {
         if (rows.isEmpty()) {
             return;
         }
-        log.info("[NotifyRetry] 本轮重投 {} 条失败通知", rows.size());
+        int claimed = 0;
         for (Map<String, Object> row : rows) {
+            long id = ((Number) row.get("id")).longValue();
+            // 多实例下必须**先原子认领再投递**：本方法是「先查后投」，
+            // 两个实例会捞到同一批记录各投一次，买家收到重复短信。
+            // 认领做成单条 UPDATE，只有一个实例能成功，其余跳过。
+            if (!notificationDao.claimForRetry(id, maxAttempts, claimLeaseSeconds)) {
+                continue;
+            }
+            claimed++;
             try {
                 notifyService.retryOne(row);
             } catch (Exception e) {
                 // 单条重投失败不能影响同批其他记录
-                log.error("[NotifyRetry] 重投异常 id={}", row.get("id"), e);
+                log.error("[NotifyRetry] 重投异常 id={}", id, e);
             }
         }
+        log.info("[NotifyRetry] 本轮候选 {} 条，本实例认领 {} 条", rows.size(), claimed);
     }
 }

@@ -132,6 +132,27 @@ public class NotificationDao {
     }
 
     /**
+     * 原子认领一条待补偿记录，供多实例部署时互斥。
+     * <p>
+     * 补偿任务原先「先查后改」：两个实例会同时捞出同一批 FAILED 记录并各投一次，
+     * 买家收到重复短信。这里把「领取」做成单条 UPDATE —— 只有把 next_retry_at
+     * 推到未来且条件仍成立的那一个实例改动 1 行，其余返回 0 行，自然放弃。
+     * <p>
+     * 用租约（lease）而不是新状态：认领后若本实例崩溃，租约到期记录会重新可被领取，
+     * 不需要额外的超时清理。租约需大于单次投递耗时（REST 超时 8s，取 60s 足够）。
+     *
+     * @return true 表示本次调用者成功认领，可以投递
+     */
+    public boolean claimForRetry(Long id, int maxAttempts, int leaseSeconds) {
+        int updated = jdbcTemplate.update(
+                "UPDATE notification_record SET next_retry_at = DATE_ADD(NOW(), INTERVAL ? SECOND) "
+                        + "WHERE id = ? AND status = 'FAILED' AND retry_count < ? "
+                        + "AND next_retry_at IS NOT NULL AND next_retry_at <= NOW() AND is_deleted = 0",
+                leaseSeconds, id, maxAttempts);
+        return updated == 1;
+    }
+
+    /**
      * 待补偿的记录：失败未达上限且已到退避时间。
      * 走 idx_retry(status, next_retry_at) 索引。
      */
