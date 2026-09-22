@@ -183,18 +183,28 @@ jobs:
         working-directory: microservices/infra/tools
         run: SMOKE_DOCKER=1 bash smoke_closed_loop.sh
 
-      # 失败时把「谁退了、为什么退」打出来 —— 容器 exited 的退出码与末尾日志是定位关键。
+      # 失败时把「谁退了、为什么退」打出来。
+      # 同时以 ::error:: 形式发一份 annotation：Actions 的日志下载端点要求仓库管理员权限，
+      # 而 annotation 可以通过 check-runs API 匿名读取 —— 这是远程定位失败的唯一通道。
+      # annotation 的 message 不能含换行，需编码为 %0A。
       - name: Dump service logs on failure
         if: failure()
         working-directory: microservices/infra/docker
         run: |
           echo "===== container states ====="
           docker compose -f compose.infra.yml ps -a
+          STATES=$(docker compose -f compose.infra.yml ps -a 2>&1 | tr '\n' '%0A')
+          echo "::error title=compose-ps::$STATES"
+
           echo "===== exited containers ====="
           for c in $(docker ps -a --filter "name=sentinelms-" --filter "status=exited" --format '{{.Names}}'); do
-            echo "----- $c (exit $(docker inspect -f '{{.State.ExitCode}}' "$c")) -----"
-            docker logs --no-color --tail 100 "$c" 2>&1
+            CODE=$(docker inspect -f '{{.State.ExitCode}}' "$c")
+            echo "----- $c (exit $CODE) -----"
+            docker logs --no-color --tail 40 "$c" 2>&1
+            MSG=$(docker logs --no-color --tail 40 "$c" 2>&1 | tr '\n' '%0A' | tr -d '\r')
+            echo "::error title=$c-exit-$CODE::${MSG:0:2000}"
           done
+
           echo "===== all logs (tail) ====="
           docker compose -f compose.infra.yml logs --no-color --tail 120
 
