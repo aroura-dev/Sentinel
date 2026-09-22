@@ -20,6 +20,17 @@ management:
       show-details: never
 
 spring:
+  # 分布式追踪。Sleuth 自动生成 traceId/spanId 放进 MDC，并跨 HTTP/Kafka 传递。
+  # Zipkin 默认关闭：日志里的 traceId 不依赖上报服务，而没有收集端时开启上报只会刷连接错误日志。
+  # 需要看链路拓扑时再开：ZIPKIN_ENABLED=true 并启用 observability profile。
+  sleuth:
+    sampler:
+      probability: ${SLEUTH_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    enabled: ${ZIPKIN_ENABLED:false}
+    base-url: ${ZIPKIN_BASE_URL:http://zipkin:9411}
+    sender:
+      type: web
   application:
     name: sentinel-gateway
   redis:
@@ -59,6 +70,6 @@ logging:
   # requestId 由 RequestIdGlobalFilter 生成并透传给下游；
   # 网关自身跑在 Reactor Netty 上（线程会切换），MDC 是 ThreadLocal，故此处通常为空。
   pattern:
-    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}/%X{spanId:-}] [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
   level:
     org.springframework.cloud.gateway: INFO

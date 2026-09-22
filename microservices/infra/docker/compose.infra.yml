@@ -298,6 +298,17 @@ services:
     # 只绑回环：这是运维查询界面，不该对局域网或公网可达。
     ports: ["127.0.0.1:9090:9090"]
 
+  # 可选：链路收集与查询界面，同样默认不启动。
+  # 与 prometheus 一样走 observability profile，但要真正上报还需在 .env 里
+  # 设 ZIPKIN_ENABLED=true 并重建服务容器（默认关闭是为了在没有收集端时不刷连接错误日志）。
+  # 注意：日志里的 traceId/spanId 不依赖它 —— 那部分始终有效。
+  zipkin:
+    image: openzipkin/zipkin:2.24
+    container_name: sentinelms-zipkin
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports: ["127.0.0.1:9411:9411"]
+
 volumes:
   auth-mysql-data:
   msg-mysql-data:

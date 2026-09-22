@@ -60,6 +60,19 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+        <!-- 分布式追踪：Sleuth 是 Boot 2.7 对应的方案（Micrometer Tracing 要 Boot 3）。
+             它自动把 traceId/spanId 放进 MDC，并跨 HTTP / Kafka 传递，
+             使一次请求在多个服务里的日志能按同一个 traceId 关联。 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-sleuth</artifactId>
+            <version>${sleuth.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-sleuth-zipkin</artifactId>
+            <version>${sleuth.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

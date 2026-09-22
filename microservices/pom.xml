@@ -51,6 +51,9 @@
 
         <!-- 微服务基线 -->
         <spring-cloud.version>2021.0.8</spring-cloud.version>
+        <!-- Sleuth 版本：Spring Cloud BOM 通过 ${spring-cloud-sleuth.version} 间接引入，
+             该属性在本项目解析不到，故显式声明。3.1.x 是 2021.0.x 对应的 Sleuth 线。 -->
+        <sleuth.version>3.1.9</sleuth.version>
 
         <!-- 依赖库版本（沿用源全量） -->
         <mysql-connector-java.version>8.0.33</mysql-connector-java.version>
@@ -79,6 +82,18 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Cloud BOM。
+                 原先只有 gateway 模块自己 import，业务服务因此拿不到 spring-cloud 系依赖的版本
+                 （加 Sleuth 时表现为 'dependencies.dependency.version ... is missing'）。
+                 放在父 pom 才能让所有模块共享同一套版本。 -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- 本地内部模块 -->
             <dependency>
                 <groupId>com.aroura.sentinel</groupId>

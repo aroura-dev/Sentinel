@@ -20,6 +20,17 @@ management:
       show-details: never
 
 spring:
+  # 分布式追踪。Sleuth 自动生成 traceId/spanId 放进 MDC，并跨 HTTP/Kafka 传递。
+  # Zipkin 默认关闭：日志里的 traceId 不依赖上报服务，而没有收集端时开启上报只会刷连接错误日志。
+  # 需要看链路拓扑时再开：ZIPKIN_ENABLED=true 并启用 observability profile。
+  sleuth:
+    sampler:
+      probability: ${SLEUTH_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    enabled: ${ZIPKIN_ENABLED:false}
+    base-url: ${ZIPKIN_BASE_URL:http://zipkin:9411}
+    sender:
+      type: web
   # 数据库迁移：schema 由 Flyway 拥有，迁移脚本在 classpath:db/migration。
   # 注意：本次改造前已存在的数据卷里，schema 是 initdb 建的、没有 flyway_schema_history 表，
   # 需要一次性重建数据卷（down -v）让 Flyway 接管；之后再变更 schema 直接加新版本脚本即可。
@@ -70,4 +81,4 @@ service:
 # 日志格式：把 MDC 里的 requestId 打出来，使同一请求跨服务的日志可以按 ID 捞取。
 logging:
   pattern:
-    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}/%X{spanId:-}] [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
