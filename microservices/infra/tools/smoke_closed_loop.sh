@@ -25,7 +25,9 @@ dbq() {
 }
 
 echo "== 1) 经网关登录 张伟 =="
-TOKEN=$(curl -s -X POST "$GW/api/auth/login" -d "username=张伟&password=Admin@123" \
+# 用户名用百分号编码写死，避免 Git Bash/MSYS2 在 Windows 上把中文命令行参数
+# 转成 ANSI 代码页（CP936）导致登录莫名失败。Linux/CI 上行为完全一致。
+TOKEN=$(curl -s -X POST "$GW/api/auth/login" --data "username=%E5%BC%A0%E4%BC%9F&password=Admin@123" \
         | grep -oE '"token":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
 [ -n "$TOKEN" ] && echo "   token=${TOKEN:0:12}..." || { echo "   登录失败"; exit 1; }
 
