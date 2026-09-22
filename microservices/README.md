@@ -208,7 +208,7 @@ docs/                                         Business, architecture, and benchm
 |---|---|
 | Language / runtime | Java 17 baseline, verified on 21 |
 | Framework | Spring Boot 2.7, Spring Cloud 2021 |
-| Persistence | MySQL 5.7 — one dedicated instance per service |
+| Persistence | MySQL 8.0 — one dedicated instance per service |
 | Session / dedup store | Redis 6 |
 | Messaging | Kafka 2.6 |
 | AI | LangChain4j with DashScope (Qwen) |

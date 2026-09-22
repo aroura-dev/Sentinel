@@ -1,5 +1,4 @@
 SET NAMES utf8mb4;
-USE sentinel_auth;
 
 -- 与 02_phone.sql 同模式：先加列再灌数据。
 -- 若缺失此 ALTER，本文件会在干净克隆时以 ERROR 1054 (Unknown column 'avatar') 中断，

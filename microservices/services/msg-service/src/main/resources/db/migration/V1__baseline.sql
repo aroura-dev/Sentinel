@@ -1,6 +1,5 @@
 -- sentinel-ms : sentinel_msg（由 模块化单体版 库快照导出生成，勿手改）
 CREATE DATABASE IF NOT EXISTS sentinel_msg DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE sentinel_msg;
 SET NAMES utf8mb4;
 
 
@@ -46,11 +45,9 @@ CREATE TABLE `message_template` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1013 DEFAULT CHARSET=utf8mb4 COMMENT='消息模板信息';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-LOCK TABLES `message_template` WRITE;
 /*!40000 ALTER TABLE `message_template` DISABLE KEYS */;
 INSERT INTO `message_template` VALUES (3,'Sentinel 物流通知',20,NULL,30,NULL,NULL,NULL,10,30,10,10,10,'{\"content\":\"您的订单 {$orderNo} 物流状态已更新，请及时关注\"}',9001,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1001,'sentinel:IMPORT_CUSTOMS:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹已到达目的地分拨中心，正在分拣，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1004,'sentinel:LAST_MILE:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹已进入末端派送，快递员将很快与您联系。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1007,'sentinel:DELIVERED:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您的包裹已签收，感谢您的信任与支持！',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194),(1010,'sentinel:CUSTOMS_DELAY:zh',20,NULL,30,NULL,NULL,NULL,10,20,10,10,10,'您好，您的包裹在中转环节出现延误，我们正在加紧处理，请耐心等待。',9002,'sentinel','sentinel','sentinel','sentinel','sentinel',0,1788570194,1788570194);
 /*!40000 ALTER TABLE `message_template` ENABLE KEYS */;
-UNLOCK TABLES;
 DROP TABLE IF EXISTS `sms_record`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -73,10 +70,8 @@ CREATE TABLE `sms_record` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='短信记录信息';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-LOCK TABLES `sms_record` WRITE;
 /*!40000 ALTER TABLE `sms_record` DISABLE KEYS */;
 /*!40000 ALTER TABLE `sms_record` ENABLE KEYS */;
-UNLOCK TABLES;
 DROP TABLE IF EXISTS `channel_account`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -94,11 +89,9 @@ CREATE TABLE `channel_account` (
 ) ENGINE=InnoDB AUTO_INCREMENT=9005 DEFAULT CHARSET=utf8mb4 COMMENT='渠道账号信息';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-LOCK TABLES `channel_account` WRITE;
 /*!40000 ALTER TABLE `channel_account` DISABLE KEYS */;
 INSERT INTO `channel_account` VALUES (9001,'sandbox-sms',30,'{}','sentinel',0,0,0),(9002,'sandbox-push',20,'{}','sentinel',0,0,0),(9003,'sandbox-email',40,'{}','sentinel',0,0,0),(9004,'sandbox-feishu',110,'{}','sentinel',0,0,0);
 /*!40000 ALTER TABLE `channel_account` ENABLE KEYS */;
-UNLOCK TABLES;
 DROP TABLE IF EXISTS `unsubscribe`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -114,10 +107,8 @@ CREATE TABLE `unsubscribe` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退订表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-LOCK TABLES `unsubscribe` WRITE;
 /*!40000 ALTER TABLE `unsubscribe` DISABLE KEYS */;
 /*!40000 ALTER TABLE `unsubscribe` ENABLE KEYS */;
-UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

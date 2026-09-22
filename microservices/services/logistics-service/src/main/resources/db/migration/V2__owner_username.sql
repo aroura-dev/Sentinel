@@ -1,4 +1,3 @@
-USE sentinel_logistics;
 SET NAMES utf8mb4;
 
 -- 一次性迁移：merchant 冗余 owner_username（替代跨库 JOIN sentinel_user，供物流服务行级过滤）

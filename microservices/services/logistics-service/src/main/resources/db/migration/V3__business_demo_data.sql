@@ -1,4 +1,3 @@
-USE sentinel_logistics;
 SET NAMES utf8mb4;
 
 INSERT INTO inventory (id, sku, product_id, merchant_id, warehouse_id, on_hand, reserved, created_at, updated_at, is_deleted) VALUES

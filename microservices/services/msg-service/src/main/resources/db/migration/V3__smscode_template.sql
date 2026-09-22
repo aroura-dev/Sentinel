@@ -1,4 +1,3 @@
-USE sentinel_msg;
 
 -- 必须显式指定 id，并保持与 compose 的 SMS_ENGINE_TEMPLATE_ID 一致（当前 1011）。
 --

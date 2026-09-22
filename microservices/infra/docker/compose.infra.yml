@@ -66,11 +66,14 @@ services:
       retries: 30
 
   mysql-auth:
-    image: mysql:5.7
+    image: mysql:8.0
     container_name: sentinelms-mysql-auth
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_auth
       MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
       MYSQL_ROOT_HOST: localhost
@@ -85,11 +88,14 @@ services:
       retries: 30
 
   mysql-msg:
-    image: mysql:5.7
+    image: mysql:8.0
     container_name: sentinelms-mysql-msg
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_msg
       MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
       MYSQL_ROOT_HOST: localhost
@@ -104,11 +110,14 @@ services:
       retries: 30
 
   mysql-logistics:
-    image: mysql:5.7
+    image: mysql:8.0
     container_name: sentinelms-mysql-logistics
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_logistics
       MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
       MYSQL_ROOT_HOST: localhost
@@ -123,11 +132,14 @@ services:
       retries: 30
 
   mysql-agent:
-    image: mysql:5.7
+    image: mysql:8.0
     container_name: sentinelms-mysql-agent
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_agent
       MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
       MYSQL_ROOT_HOST: localhost

@@ -1,4 +1,3 @@
-USE sentinel_logistics;
 
 -- 通知补偿所需的重试记账字段。
 --

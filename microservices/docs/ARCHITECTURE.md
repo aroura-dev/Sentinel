@@ -516,7 +516,7 @@ To bring a new domain or a new service online:
 | Spring Boot | 2.7.x | `javax.*` namespace | Migrate to the `jakarta.*` namespace and Spring Boot 3.x; touches every service and the shared modules |
 | Spring Cloud | 2021.0.x | Compatible release train for the above | Move with Spring Boot; gateway configuration format changes |
 | Build/runtime JDK | 17 baseline, runs on 21 | Baseline chosen for library compatibility | Raising the baseline is low risk; the `javax` constraint is the real blocker |
-| MySQL | 5.7 | Baseline of the original schema export | Schema is largely portable; validate driver and dialect behaviour |
+| MySQL | 8.0 | Was 5.7 — the baseline of the original schema export. Moved to 8.0 because 5.7 reached upstream end of life in October 2023, and because Flyway Community Edition refuses to run against it (5.7 requires the paid Teams edition) | Schema is largely portable; all migrations were re-verified end to end on 8.0 |
 | Kafka | 2.6 | Baseline of the original pipeline | Client and broker are broadly compatible across minor versions |
 
 > This is a **reference implementation**, not a declaration of production readiness. The baseline predates the `jakarta` namespace and several components are past upstream support. The upgrade path above is the honest statement of what adopting it in production would require.

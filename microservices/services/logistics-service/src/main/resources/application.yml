@@ -16,6 +16,12 @@ management:
       show-details: never
 
 spring:
+  # 数据库迁移：schema 由 Flyway 拥有，迁移脚本在 classpath:db/migration。
+  # 注意：本次改造前已存在的数据卷里，schema 是 initdb 建的、没有 flyway_schema_history 表，
+  # 需要一次性重建数据卷（down -v）让 Flyway 接管；之后再变更 schema 直接加新版本脚本即可。
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
   application:
     name: logistics-service
   datasource:

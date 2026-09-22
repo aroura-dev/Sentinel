@@ -7,7 +7,9 @@ set -euo pipefail
 mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}" <<SQL
 CREATE USER IF NOT EXISTS 'sentinel_agent'@'%' IDENTIFIED BY '${MYSQL_APP_PASSWORD}';
 ALTER USER 'sentinel_agent'@'%' IDENTIFIED BY '${MYSQL_APP_PASSWORD}';
-GRANT SELECT, INSERT, UPDATE, DELETE ON sentinel_agent.* TO 'sentinel_agent'@'%';
+# Flyway 由本账号执行迁移，需要建表/改表权限；这确实比纯 DML 宽，
+# 但仍限于本服务自己的库 —— 跨库隔离这条主要性质不变。
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES ON sentinel_agent.* TO 'sentinel_agent'@'%';
 FLUSH PRIVILEGES;
 SQL
 

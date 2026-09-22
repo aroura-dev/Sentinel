@@ -1,4 +1,3 @@
-USE sentinel_auth;
 SET NAMES utf8mb4;
 
 -- 与 02_phone.sql 同模式：先加列再灌数据。
