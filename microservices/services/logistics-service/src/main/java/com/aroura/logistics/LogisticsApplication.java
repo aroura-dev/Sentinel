@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * sentinel-ms 履约物流服务入口（独立进程 :8083，连 sentinel_logistics）。
@@ -11,11 +12,16 @@ import org.springframework.context.annotation.FilterType;
  * 复用 sentinel-logistics 领域模块（订单/轨迹/通知 DAO 等），启动类置于 com.aroura.logistics：
  * - 默认扫描 com.aroura.logistics（本服务装配）；
  * - 显式扫描 com.aroura.sentinel 装载 sentinel-logistics 的 @Repository/@Service；
- *   但剔除该模块自带的定时扫描任务与 @EnableScheduling 配置（切分后由本进程按需控制）。
+ *   但剔除该模块自带的定时扫描任务与配置类（切分后由本进程按需控制）。
  * 通知闭环的 AI 文案与最终触达改为调用 agent-service(:8084)/msg-service(:8082) 的 REST。
+ * <p>
+ * 开启调度：通知失败补偿（com.aroura.logistics.task.NotificationRetryTask）依赖它。
+ * 在此之前本进程没有任何 @Scheduled —— 上游模块的定时任务被 exclude 掉后无人接管，
+ * 导致投递失败的通知永久停在 FAILED，落库后崩溃留下的 PENDING 也永不回收。
  *
  * @author sentinel-ms
  */
+@EnableScheduling
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.aroura.sentinel", "com.aroura.logistics"}, excludeFilters = {
         @ComponentScan.Filter(type = FilterType.REGEX, pattern =

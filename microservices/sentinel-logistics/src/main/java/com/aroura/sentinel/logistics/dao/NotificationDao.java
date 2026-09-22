@@ -1,8 +1,13 @@
 package com.aroura.sentinel.logistics.dao;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,10 +27,30 @@ public class NotificationDao {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void insert(String orderNo, String node, String role, String channel, String content, String language, String status, String traceId) {
-        jdbcTemplate.update(
-                "INSERT INTO notification_record (order_no, node, role, channel, content, language, status, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                orderNo, node, role, channel, content, language, status, traceId);
+    /**
+     * 落库并返回自增主键。
+     * <p>
+     * 原实现不返回主键，调用方只能再查一次「同 order_no 的最新一行」来定位刚插入的记录 ——
+     * 那是个前导通配符的全表扫，且并发下可能取到别人的行、把状态改到错误的对象上。
+     */
+    public long insert(String orderNo, String node, String role, String channel, String content, String language, String status, String traceId) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(con -> {
+            PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO notification_record (order_no, node, role, channel, content, language, status, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, orderNo);
+            ps.setString(2, node);
+            ps.setString(3, role);
+            ps.setString(4, channel);
+            ps.setString(5, content);
+            ps.setString(6, language);
+            ps.setString(7, status);
+            ps.setString(8, traceId);
+            return ps;
+        }, keyHolder);
+        Number key = keyHolder.getKey();
+        return key == null ? 0L : key.longValue();
     }
 
     public Map<String, Object> queryPage(String orderNo, String channel, String status, int page, int perPage) {
@@ -81,16 +106,65 @@ public class NotificationDao {
         return result;
     }
 
-    public void updateStatus(Long id, String status) {
-        jdbcTemplate.update("UPDATE notification_record SET status = ? WHERE id = ? AND is_deleted = 0", status, id);
+    /** 投递成功：清空错误与重试时间。 */
+    public void markSent(Long id) {
+        jdbcTemplate.update(
+                "UPDATE notification_record SET status = 'SENT', last_error = NULL, next_retry_at = NULL WHERE id = ? AND is_deleted = 0",
+                id);
+    }
+
+    /** 无接收方/未启用投递：显式标记为跳过，避免与「卡住的 PENDING」混为一谈。 */
+    public void markSkipped(Long id, String reason) {
+        jdbcTemplate.update(
+                "UPDATE notification_record SET status = 'SKIPPED', last_error = ?, next_retry_at = NULL WHERE id = ? AND is_deleted = 0",
+                reason, id);
     }
 
     /**
-     * 判断某订单在某节点、某角色近 N 小时内是否已发送过通知（用于 24h 去重）
+     * 投递失败：登记失败原因、累计重试次数、设置退避后的下次重试时间。
+     * retry_count 在 SQL 里自增，避免读改写竞态。
+     */
+    public void markFailed(Long id, String error, Timestamp nextRetryAt) {
+        jdbcTemplate.update(
+                "UPDATE notification_record SET status = 'FAILED', last_error = ?, next_retry_at = ?, retry_count = retry_count + 1 "
+                        + "WHERE id = ? AND is_deleted = 0",
+                error == null ? null : (error.length() > 255 ? error.substring(0, 255) : error), nextRetryAt, id);
+    }
+
+    /**
+     * 待补偿的记录：失败未达上限且已到退避时间。
+     * 走 idx_retry(status, next_retry_at) 索引。
+     */
+    public List<Map<String, Object>> findRetryable(int maxAttempts, int limit) {
+        return jdbcTemplate.queryForList(
+                "SELECT * FROM notification_record WHERE status = 'FAILED' AND retry_count < ? "
+                        + "AND next_retry_at IS NOT NULL AND next_retry_at <= NOW() AND is_deleted = 0 "
+                        + "ORDER BY next_retry_at LIMIT ?",
+                maxAttempts, limit);
+    }
+
+    /**
+     * 回收卡住的 PENDING：进程在「落库」与「投递」之间崩溃会留下永久 PENDING。
+     * 转为 FAILED 交给补偿路径重投（retry_count 不增，因为它从未真正投递过）。
+     */
+    public int reapStalePending(int staleMinutes, int limit) {
+        return jdbcTemplate.update(
+                "UPDATE notification_record SET status = 'FAILED', last_error = 'stale PENDING: 落库后未完成投递', "
+                        + "next_retry_at = NOW() WHERE status = 'PENDING' AND is_deleted = 0 "
+                        + "AND created_at < DATE_SUB(NOW(), INTERVAL ? MINUTE) LIMIT ?",
+                staleMinutes, limit);
+    }
+
+    /**
+     * 判断某订单在某节点、某角色近 N 小时内是否已通知过（用于 24h 去重）。
+     * <p>
+     * 只统计 SENT 与 PENDING：FAILED 代表没真正触达，SKIPPED 代表本就不该发 ——
+     * 把它们计入「已通知」会让一次失败挡住之后 24 小时内的所有重发。
      */
     public boolean existsRecent(String orderNo, String node, String role, int hours) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notification_record WHERE order_no = ? AND node = ? AND role = ? "
+                        + "AND status IN ('SENT', 'PENDING') "
                         + "AND is_deleted = 0 AND created_at > DATE_SUB(NOW(), INTERVAL " + hours + " HOUR)",
                 Integer.class, orderNo, node, role);
         return count != null && count > 0;
