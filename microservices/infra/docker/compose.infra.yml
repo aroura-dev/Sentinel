@@ -180,6 +180,10 @@ services:
       SMS_ENGINE_TEMPLATE_ID: "1011"
       # 验证码不回传接口（从 Redis/短信查收，手动输入）；本地联调需要时临时置 true
       SMS_DEV_RETURN_CODE: "false"
+      # 业务参数外置（同上）
+      SENTINEL_LOGIN_TOKEN_TTL_SECONDS: ${TOKEN_TTL_SECONDS:-7200}
+      AUTH_REMEMBER_TTL_SECONDS: ${REMEMBER_TTL_SECONDS:-604800}
+      AUTH_REGISTER_DEFAULT_ROLE: ${REGISTER_DEFAULT_ROLE:-MERCHANT}
       SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
     deploy:
       resources:
@@ -204,6 +208,9 @@ services:
       SPRING_REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # 原先只写在 jar 内的 local.properties，改一次要重新打包
+      DEDUPLICATION_RULE: ${DEDUPLICATION_RULE:-{"deduplication_10":{"num":1,"time":300},"deduplication_20":{"num":5}}}
+      FLOW_CONTROL_RULE: ${FLOW_CONTROL_RULE:-{"flow_control_40":1}}
     deploy:
       resources:
         limits: {cpus: "1.0", memory: 1G}
@@ -221,6 +228,11 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       SERVICE_AGENT_URL: http://agent-service:8084
       SERVICE_MSG_URL: http://msg-service:8082
+      # 业务参数外置：这些值原先只写在 application.yml 里，改一次要重新构建镜像。
+      NOTIFY_TEMPLATE_ID: ${NOTIFY_TEMPLATE_ID:-3}
+      NOTIFY_DEDUP_HOURS: ${NOTIFY_DEDUP_HOURS:-24}
+      NOTIFY_RETRY_MAX_ATTEMPTS: ${NOTIFY_RETRY_MAX_ATTEMPTS:-5}
+      NOTIFY_RETRY_STALE_PENDING_MINUTES: ${NOTIFY_RETRY_STALE_PENDING_MINUTES:-10}
       SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
     deploy:
       resources:
