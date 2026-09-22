@@ -64,8 +64,10 @@ jobs:
           cache: maven
       - name: Install microservice parent POM
         run: mvn -B -ntp -N install
+      # 跑全部模块，不再只挑三个库模块 —— 之前的列表漏掉了 gateway 与各 service，
+      # 而恰恰是这些可部署单元一行测试都没有（鉴权原语、通知补偿的测试都在其中）。
       - name: Microservice backend tests
-        run: mvn -B -ntp -pl sentinel-logistics,sentinel-agent,sentinel-service-api-impl -am test
+        run: mvn -B -ntp test
 
   deployment-smoke:
     name: Docker deployment smoke
