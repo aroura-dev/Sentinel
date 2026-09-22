@@ -57,10 +57,10 @@ services:
   redis:
     image: redis:6-alpine
     container_name: sentinelms-redis
-    command: ["redis-server", "--requirepass", "sentinel"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "sentinel", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -70,14 +70,16 @@ services:
     container_name: sentinelms-mysql-auth
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123_A
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
       TZ: Asia/Shanghai
     volumes:
       - auth-mysql-data:/var/lib/mysql
       - ../mysql/auth/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -87,14 +89,16 @@ services:
     container_name: sentinelms-mysql-msg
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123_A
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
       TZ: Asia/Shanghai
     volumes:
       - msg-mysql-data:/var/lib/mysql
       - ../mysql/msg/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -104,14 +108,16 @@ services:
     container_name: sentinelms-mysql-logistics
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123_A
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
       TZ: Asia/Shanghai
     volumes:
       - logistics-mysql-data:/var/lib/mysql
       - ../mysql/logistics/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -121,14 +127,16 @@ services:
     container_name: sentinelms-mysql-agent
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123_A
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
       TZ: Asia/Shanghai
     volumes:
       - agent-mysql-data:/var/lib/mysql
       - ../mysql/agent/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123_A"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -150,11 +158,11 @@ services:
       redis: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-auth:3306/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_DATASOURCE_USERNAME: sentinel_auth
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: "6379"
-      SPRING_REDIS_PASSWORD: sentinel
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
       # 验证码短信走真实引擎(msg-service)
       SMS_ENGINE_MSG_URL: http://msg-service:8082
       SMS_ENGINE_TEMPLATE_ID: "1011"
@@ -177,11 +185,11 @@ services:
       kafka: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-msg:3306/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_DATASOURCE_USERNAME: sentinel_msg
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: "6379"
-      SPRING_REDIS_PASSWORD: sentinel
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     deploy:
       resources:
@@ -196,8 +204,8 @@ services:
       mysql-logistics: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-logistics:3306/sentinel_logistics?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_DATASOURCE_USERNAME: sentinel_logistics
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
       SERVICE_AGENT_URL: http://agent-service:8084
       SERVICE_MSG_URL: http://msg-service:8082
     deploy:
@@ -212,8 +220,8 @@ services:
       mysql-agent: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-agent:3306/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123_A
+      SPRING_DATASOURCE_USERNAME: sentinel_agent
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
     deploy:
       resources:
         limits: {cpus: "0.5", memory: 512M}
@@ -228,7 +236,7 @@ services:
       LEGACY_URI: http://host.docker.internal:8090
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      SPRING_REDIS_PASSWORD: sentinel
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
     deploy:
       resources:
         limits: {cpus: "1.0", memory: 512M}

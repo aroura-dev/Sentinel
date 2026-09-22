@@ -15,12 +15,12 @@ DOCKER_MODE=${SMOKE_DOCKER:-0}
 dbq() {
   local domain="$1" sql="$2"
   if [ "$DOCKER_MODE" = "1" ]; then
-    docker exec "sentinelms-mysql-$domain" mysql -uroot -proot123_A -N -e "$sql" 2>/dev/null
+    docker exec "sentinelms-mysql-$domain" mysql -uroot -p"${MYSQL_ROOT_PASSWORD:-root123_A}" -N -e "$sql" 2>/dev/null
   else
     case "$domain" in
       auth) local p=33061;; msg) local p=33062;; logistics) local p=33063;; agent) local p=33064;;
     esac
-    mysql -h127.0.0.1 -P"$p" -uroot -proot123_A -N -e "$sql" 2>/dev/null
+    mysql -h127.0.0.1 -P"$p" -uroot -p"${MYSQL_ROOT_PASSWORD:-root123_A}" -N -e "$sql" 2>/dev/null
   fi
 }
 

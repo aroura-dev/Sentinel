@@ -126,6 +126,11 @@ jobs:
           cp services/agent-service/target/agent-service.jar dist/
           cp gateway/target/sentinel-gateway.jar dist/
 
+      # compose 用 ${VAR:?} 强制要求口令存在（失败即报错，而非静默用空口令）。
+      # 从模板生成 .env —— 这样 CI 同时也验证了 .env.example 是完整的。
+      - name: Prepare environment file
+        run: cp infra/docker/.env.example infra/docker/.env
+
       - name: Build and start stack
         working-directory: microservices/infra/docker
         run: |
