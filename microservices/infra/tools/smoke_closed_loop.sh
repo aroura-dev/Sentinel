@@ -27,9 +27,19 @@ dbq() {
 echo "== 1) 经网关登录 张伟 =="
 # 用户名用百分号编码写死，避免 Git Bash/MSYS2 在 Windows 上把中文命令行参数
 # 转成 ANSI 代码页（CP936）导致登录莫名失败。Linux/CI 上行为完全一致。
-TOKEN=$(curl -s -X POST "$GW/api/auth/login" --data "username=%E5%BC%A0%E4%BC%9F&password=Admin@123" \
-        | grep -oE '"token":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
-[ -n "$TOKEN" ] && echo "   token=${TOKEN:0:12}..." || { echo "   登录失败"; exit 1; }
+#
+# 带重试：下面第 3 步早就容忍了「重启后消费未就绪」的竞态，而登录这一步却是一次定生死。
+# 刚重启完栈或刚从备份恢复时，网关/认证服务可能还没就绪，脚本会以「登录失败」告终，
+# 让人误以为是功能坏了 —— 这个误判已经发生过好几次。
+TOKEN=""
+for attempt in 1 2 3 4 5; do
+  TOKEN=$(curl -s -m 10 -X POST "$GW/api/auth/login" --data "username=%E5%BC%A0%E4%BC%9F&password=Admin@123" \
+          | grep -oE '"token":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
+  [ -n "$TOKEN" ] && break
+  echo "   [try$attempt] 未就绪，5s 后重试"
+  sleep 5
+done
+[ -n "$TOKEN" ] && echo "   token=${TOKEN:0:12}..." || { echo "   登录失败（已重试 5 次）"; exit 1; }
 
 echo "== 2) 选无买家通知+数字手机号订单 =="
 ON=$(dbq logistics "SELECT o.order_no FROM sentinel_logistics.logistics_order o \
