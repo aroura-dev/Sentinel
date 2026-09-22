@@ -66,3 +66,8 @@ notify:
 service:
   agent-url: http://127.0.0.1:8084
   msg-url: http://127.0.0.1:8082
+
+# 日志格式：把 MDC 里的 requestId 打出来，使同一请求跨服务的日志可以按 ID 捞取。
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"

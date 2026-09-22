@@ -6,9 +6,11 @@ import java.util.Map;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.aroura.sentinel.ms.web.InternalAuth;
+import com.aroura.sentinel.ms.web.RequestIdFilter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -50,6 +52,11 @@ public class AgentClient {
     private HttpHeaders internalHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        // 透传请求关联 ID，否则链路在跨服务这一跳就断了，下游日志无从关联
+        String requestId = MDC.get(RequestIdFilter.MDC_KEY);
+        if (requestId != null && !requestId.isEmpty()) {
+            headers.set(RequestIdFilter.HDR_REQUEST_ID, requestId);
+        }
         if (internalSecret != null && !internalSecret.isEmpty()) {
             long ts = System.currentTimeMillis() / 1000L;
             headers.set(InternalAuth.HDR_SERVICE, SERVICE_NAME);

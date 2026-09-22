@@ -5,10 +5,15 @@ import java.util.Map;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.aroura.sentinel.ms.web.RequestIdFilter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -47,7 +52,15 @@ public class MsgClient {
         req.put("messageTemplateId", templateId);
         req.put("messageParam", messageParam);
         try {
-            String resp = restTemplate.postForObject(msgUrl + "/send", req, String.class);
+            // 透传请求关联 ID，让 msg-service 侧的日志能与本次请求对上
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            String requestId = MDC.get(RequestIdFilter.MDC_KEY);
+            if (requestId != null && !requestId.isEmpty()) {
+                headers.set(RequestIdFilter.HDR_REQUEST_ID, requestId);
+            }
+            String resp = restTemplate.postForObject(msgUrl + "/send",
+                    new HttpEntity<>(req, headers), String.class);
             if (resp == null) {
                 return false;
             }

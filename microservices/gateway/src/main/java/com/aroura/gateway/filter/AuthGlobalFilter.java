@@ -144,7 +144,8 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE;
+        // 退后一位：RequestIdGlobalFilter 要最先跑，否则认证失败时请求还没有 ID。
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String msg) {

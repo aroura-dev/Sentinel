@@ -56,5 +56,9 @@ spring:
             - Path=/api/**
 
 logging:
+  # requestId 由 RequestIdGlobalFilter 生成并透传给下游；
+  # 网关自身跑在 Reactor Netty 上（线程会切换），MDC 是 ThreadLocal，故此处通常为空。
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
   level:
     org.springframework.cloud.gateway: INFO

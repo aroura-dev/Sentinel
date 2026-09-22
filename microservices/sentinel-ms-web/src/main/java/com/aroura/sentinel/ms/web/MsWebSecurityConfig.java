@@ -41,6 +41,19 @@ public class MsWebSecurityConfig implements WebMvcConfigurer {
     @Value("${sentinel.internal.max-skew-seconds:300}")
     private long internalMaxSkewSeconds;
 
+    /**
+     * 请求关联 ID 必须排在身份过滤器之前：后者在签名校验失败时会写 WARN 日志，
+     * 那条日志同样需要带上 requestId 才能和调用方的请求对上。
+     */
+    @Bean
+    public FilterRegistrationBean<RequestIdFilter> requestIdFilter() {
+        FilterRegistrationBean<RequestIdFilter> reg = new FilterRegistrationBean<>(new RequestIdFilter());
+        reg.addUrlPatterns("/*");
+        reg.setName("requestIdFilter");
+        reg.setOrder(-1);
+        return reg;
+    }
+
     @Bean
     public FilterRegistrationBean<CurrentUserFilter> currentUserFilter() {
         FilterRegistrationBean<CurrentUserFilter> reg =
