@@ -12,12 +12,24 @@
 
     <artifactId>sentinel-ms-web</artifactId>
     <name>sentinel-ms-web</name>
-    <description>sentinel-ms 共享 web 层：身份头解析 Filter、@RequireRole 角色校验、VO</description>
+    <description>sentinel-ms 共享 web 层：身份头解析 Filter、@RequireRole 角色校验、身份签名、全局异常处理、VO</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- 统一响应契约 BasicResultVO/RespStatusEnum：全局异常处理要按它构造响应体，
+             各处各写一份 Map 迟早会漂移。 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-common</artifactId>
+        </dependency>
+        <!-- 参数校验：Boot 2.3+ 起 starter-web 不再内含 validation。
+             放在共享层，依赖本模块的业务服务即可直接使用 @Valid/@Validated。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
