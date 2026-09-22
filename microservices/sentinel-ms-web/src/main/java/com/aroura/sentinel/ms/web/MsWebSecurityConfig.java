@@ -1,5 +1,6 @@
 package com.aroura.sentinel.ms.web;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,9 +34,17 @@ public class MsWebSecurityConfig implements WebMvcConfigurer {
         return new RoleCheckInterceptor();
     }
 
+    /** 与网关共享的身份签名密钥；为空则不校验（仅限本地无网关联调）。 */
+    @Value("${sentinel.internal.secret:}")
+    private String internalSecret;
+    /** 签名时间戳允许的偏移秒数，用于限制重放窗口。 */
+    @Value("${sentinel.internal.max-skew-seconds:300}")
+    private long internalMaxSkewSeconds;
+
     @Bean
     public FilterRegistrationBean<CurrentUserFilter> currentUserFilter() {
-        FilterRegistrationBean<CurrentUserFilter> reg = new FilterRegistrationBean<>(new CurrentUserFilter());
+        FilterRegistrationBean<CurrentUserFilter> reg =
+                new FilterRegistrationBean<>(new CurrentUserFilter(internalSecret, internalMaxSkewSeconds));
         reg.addUrlPatterns("/*");
         reg.setName("currentUserFilter");
         reg.setOrder(0);

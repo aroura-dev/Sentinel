@@ -24,6 +24,12 @@
             <groupId>com.aroura.sentinel</groupId>
             <artifactId>sentinel-agent</artifactId>
         </dependency>
+        <!-- 共享鉴权层：/internal/** 需要校验服务签名，否则任何能访问本服务端口的人
+             都能直接刷 AI 接口（产生真实的模型调用费用）。 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-ms-web</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

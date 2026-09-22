@@ -17,7 +17,7 @@ import org.springframework.context.annotation.FilterType;
  * @author sentinel-ms
  */
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.aroura.sentinel.agent", "com.aroura.agent"}, excludeFilters = {
+@ComponentScan(basePackages = {"com.aroura.sentinel.agent", "com.aroura.agent", "com.aroura.sentinel.ms.web"}, excludeFilters = {
         @ComponentScan.Filter(type = FilterType.REGEX, pattern =
                 "com\\.aroura\\.sentinel\\.agent\\.agent\\.(AnomalyDiagnose|Workorder|CsRoute|EtaPredict|RouteAdvice)Agent"),
         @ComponentScan.Filter(type = FilterType.REGEX, pattern =
