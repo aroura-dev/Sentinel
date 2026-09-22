@@ -138,6 +138,22 @@ jobs:
         working-directory: microservices/infra/docker
         run: docker compose -f compose.infra.yml build
 
+      # 单独一步拉取基础镜像（mysql/redis/zookeeper/kafka/node），带重试。
+      # 动机：up -d 会在拉取失败时报错，与「容器起不来」混在一起无法区分；
+      # 而 GitHub runner 共享出口 IP，Docker Hub 匿名拉取限流是常见且瞬时的失败。
+      # --ignore-buildable 跳过本仓库自建的服务镜像，只拉第三方基础镜像。
+      - name: Pull base images
+        working-directory: microservices/infra/docker
+        run: |
+          for attempt in 1 2 3; do
+            if docker compose -f compose.infra.yml pull --ignore-buildable; then
+              echo "pull ok on attempt $attempt"; exit 0
+            fi
+            echo "pull attempt $attempt failed; retrying in 15s"
+            sleep 15
+          done
+          echo "拉取基础镜像连续失败 3 次"; exit 1
+
       - name: Start stack
         working-directory: microservices/infra/docker
         run: docker compose -f compose.infra.yml up -d
