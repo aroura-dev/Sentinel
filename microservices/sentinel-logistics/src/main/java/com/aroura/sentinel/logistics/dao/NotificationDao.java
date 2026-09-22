@@ -106,6 +106,34 @@ public class NotificationDao {
         return result;
     }
 
+    /**
+     * 按 trace_id 定位通知记录。
+     * <p>
+     * 回执是从 msg-service 绕回来的，它只知道 trace_id（bizId），不知道本表的自增主键。
+     * trace_id 上有索引（idx_trace_id），这条查询走索引。
+     */
+    public Map<String, Object> findByTraceId(String traceId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT * FROM notification_record WHERE trace_id = ? AND is_deleted = 0 ORDER BY id DESC LIMIT 1",
+                traceId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /**
+     * 回执确认渠道已受理：SENT → DISPATCHED。
+     * <p>
+     * 严格限定只从 SENT 迁移：回执可能重复到达或乱序，若不加前置状态条件，
+     * 一条已经 DISPATCHED 或已被补偿重投过的记录会被改回去。
+     *
+     * @return 实际影响行数；0 表示记录不在 SENT，回执被忽略（正常情况）
+     */
+    public int markDispatched(Long id) {
+        return jdbcTemplate.update(
+                "UPDATE notification_record SET status = 'DISPATCHED', next_retry_at = NULL, last_error = NULL "
+                        + "WHERE id = ? AND status = 'SENT' AND is_deleted = 0",
+                id);
+    }
+
     /** 投递成功：清空错误与重试时间。 */
     public void markSent(Long id) {
         jdbcTemplate.update(

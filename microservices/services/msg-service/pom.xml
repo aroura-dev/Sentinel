@@ -20,6 +20,15 @@
             <groupId>com.aroura.sentinel</groupId>
             <artifactId>sentinel-common</artifactId>
         </dependency>
+        <!-- 共享鉴权层。此前刻意不依赖，代价是 RequestIdFilter 只能复制一份，
+             且无法用 InternalAuth 给内部调用签名（投递回执要回调 logistics，必须签）。
+             复制加密逻辑比复制过滤器危险得多 —— 两侧一旦漂移就是静默的鉴权失败，
+             所以改为接入共享模块，并删掉那份复制的过滤器。
+             启动类的扫描范围已含 com.aroura.sentinel，无需额外配置。 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-ms-web</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.aroura.sentinel</groupId>
             <artifactId>sentinel-support</artifactId>

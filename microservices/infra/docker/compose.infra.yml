@@ -211,6 +211,9 @@ services:
       SPRING_REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # 投递回执要回调 logistics 的 /internal/**，需要服务签名（同 logistics 调 agent 那套）
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+      SERVICE_LOGISTICS_URL: http://logistics-service:8083
       # 原先只写在 jar 内的 local.properties，改一次要重新打包
       DEDUPLICATION_RULE: ${DEDUPLICATION_RULE:-{"deduplication_10":{"num":1,"time":300},"deduplication_20":{"num":5}}}
       FLOW_CONTROL_RULE: ${FLOW_CONTROL_RULE:-{"flow_control_40":1}}

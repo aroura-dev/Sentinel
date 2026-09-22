@@ -55,7 +55,9 @@ for attempt in 1 2 3; do
   echo "      [logistics]=$STATUS [agent]=$AGENT [msg]=$SMS"
 
   OK=1
-  [ "$STATUS" = "SENT" ] || OK=0
+  # SENT  = msg-service 已受理；DISPATCHED = 渠道已受理（回执已回传）。
+  # 两者都算通过：回执是异步的，断言窗口内未必已经到达。
+  { [ "$STATUS" = "SENT" ] || [ "$STATUS" = "DISPATCHED" ]; } || OK=0
   { [ "$AGENT" = "degraded" ] || [ "$AGENT" = "success" ]; } || OK=0
   echo "$SMS" | grep -q "^$PH|10$" || OK=0
   [ "$OK" = "1" ] && { PASS=1; break; }

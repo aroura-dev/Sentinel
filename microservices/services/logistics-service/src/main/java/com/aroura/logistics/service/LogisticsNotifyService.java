@@ -95,6 +95,38 @@ public class LogisticsNotifyService {
     }
 
     /**
+     * 应用投递回执（msg-service 把渠道的真实结果回传后调用）。
+     * <p>
+     * 补上「SENT 不等于已送达」这最后一环：SENT 只说明 msg-service 受理了，
+     * 渠道仍可能直接拒收（余额不足、模板未报备、号码非法）。
+     * <ul>
+     *   <li>受理 → DISPATCHED：这是一个比 SENT 更强的结论，但仍不等于用户已收到
+     *       （后者依赖运营商回执，那条链路尚未接入）。</li>
+     *   <li>拒收 → 走既有补偿路径重投，与投递失败同等对待。</li>
+     * </ul>
+     * 回执可能重复或乱序到达，故状态迁移都带前置条件，重复应用是安全的。
+     */
+    public void applyReceipt(String bizId, boolean accepted, String detail) {
+        if (bizId == null || bizId.trim().isEmpty()) {
+            return;
+        }
+        Map<String, Object> row = notificationDao.findByTraceId(bizId);
+        if (row == null) {
+            log.warn("[NotifyReceipt] 找不到对应通知记录，忽略 bizId={}", bizId);
+            return;
+        }
+        long id = ((Number) row.get("id")).longValue();
+        if (accepted) {
+            int affected = notificationDao.markDispatched(id);
+            log.info("[NotifyReceipt] id={} 渠道已受理 → DISPATCHED（影响 {} 行）", id, affected);
+        } else {
+            log.warn("[NotifyReceipt] id={} 渠道拒收，转入补偿重投", id);
+            scheduleRetry(id, String.valueOf(row.get("order_no")),
+                    detail == null || detail.isEmpty() ? "渠道拒绝受理" : detail);
+        }
+    }
+
+    /**
      * 补偿入口：对一条已存在的通知记录重新投递。
      * <p>
      * 接收方按订单号重新推导 —— 首次失败可能是因为订单当时还没有可用手机号，
