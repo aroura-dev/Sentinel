@@ -33,7 +33,9 @@ INSERT INTO inventory_flow (id, sku, biz_no, biz_type, qty, warehouse_id, create
 ON DUPLICATE KEY UPDATE sku = VALUES(sku), biz_no = VALUES(biz_no), biz_type = VALUES(biz_type), qty = VALUES(qty), warehouse_id = VALUES(warehouse_id), created_at = VALUES(created_at);
 
 INSERT INTO api_key (id, app_name, company, contact_name, contact_phone, contact_email, api_key, secret, scope, remark, status, created_by, created_at, is_deleted) VALUES
-(1, '物流运营控制台', '深圳蓝鲸科技', '陈浩', '13800000004', 'chenhao@example.com', 'sk_sentinel_demo_001', 'secret_demo_8f2c91a7', 'order:read,waybill:read', '商家订单与运单只读接入', 1, '张伟', '2026-09-15 09:20:00', 0),
+-- key 1 额外持有 track:read 与 workorder:write：/api/omnimerchant/** 启用 API Key + scope 校验后，
+-- 这两个权限是它调用对外轨迹查询与工单回调接口的必需项（另外两个应用不应持有）。
+(1, '物流运营控制台', '深圳蓝鲸科技', '陈浩', '13800000004', 'chenhao@example.com', 'sk_sentinel_demo_001', 'secret_demo_8f2c91a7', 'order:read,waybill:read,track:read,workorder:write', '商家订单与运单只读接入；OmniMerchant 轨迹查询与工单回调', 1, '张伟', '2026-09-15 09:20:00', 0),
 (2, '财务对账系统', 'Sentinel 财务中心', '赵敏', '13800000005', 'zhaomin@example.com', 'sk_sentinel_demo_002', 'secret_demo_4b81d3e6', 'bill:read,reconcile:read', '账单与差异对账只读接入', 1, '张伟', '2026-09-16 10:10:00', 0),
 (3, '承运商数据交换', '中欧班列承运有限公司', '王海', '13800138001', 'wh@lanjing.cn', 'sk_sentinel_demo_003', 'secret_demo_1a7e5c92', 'waybill:read,track:read', '承运商轨迹查询接口', 1, '刘洋', '2026-09-17 09:30:00', 0)
 ON DUPLICATE KEY UPDATE app_name = VALUES(app_name), company = VALUES(company), contact_name = VALUES(contact_name), contact_phone = VALUES(contact_phone), contact_email = VALUES(contact_email), scope = VALUES(scope), remark = VALUES(remark), status = VALUES(status), created_by = VALUES(created_by);
