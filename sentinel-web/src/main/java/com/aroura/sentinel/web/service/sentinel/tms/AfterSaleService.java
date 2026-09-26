@@ -1,8 +1,10 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,25 +20,43 @@ public class AfterSaleService {
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
 
-    public AfterSaleService(JdbcTemplate jdbcTemplate, AuditLogService auditLogService) {
+    private final TenantScopeResolver tenantScope;
+
+    public AfterSaleService(JdbcTemplate jdbcTemplate, AuditLogService auditLogService,
+                            TenantScopeResolver tenantScope) {
         this.jdbcTemplate = jdbcTemplate;
         this.auditLogService = auditLogService;
+        this.tenantScope = tenantScope;
     }
 
-    public Map<String, Object> list(String orderNo, String status, int page, int perPage) {
+    /**
+     * 售后单分页。
+     *
+     * @param merchantScope 为 null 表示不限制（平台角色 / 后台线程），非 null 则限定该商家
+     */
+    public Map<String, Object> list(String orderNo, String status, Long merchantScope, int page, int perPage) {
         StringBuilder sql = new StringBuilder("SELECT * FROM after_sale WHERE is_deleted = 0");
-        if (orderNo != null && !orderNo.isEmpty()) {
-            sql.append(" AND order_no LIKE '%").append(orderNo).append("%'");
+        List<Object> args = new ArrayList<>();
+        if (orderNo != null && !orderNo.trim().isEmpty()) {
+            sql.append(" AND order_no LIKE ?");
+            args.add("%" + orderNo.trim() + "%");
         }
-        if (status != null && !status.isEmpty()) {
-            sql.append(" AND status = '").append(status).append("'");
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND status = ?");
+            args.add(status.trim());
         }
-        int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + sql + ") t", Integer.class);
-        int offset = Math.max((page - 1) * perPage, 0);
+        if (merchantScope != null) {
+            sql.append(" AND merchant_id = ?");
+            args.add(merchantScope);
+        }
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + sql + ") t", Integer.class, args.toArray());
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(perPage);
+        pageArgs.add(Math.max((page - 1) * perPage, 0));
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                sql + " ORDER BY id DESC LIMIT " + offset + "," + perPage);
+                sql + " ORDER BY id DESC LIMIT ? OFFSET ?", pageArgs.toArray());
         Map<String, Object> res = new HashMap<>();
-        res.put("count", count);
+        res.put("count", count == null ? 0 : count);
         res.put("rows", rows);
         return res;
     }
@@ -104,7 +124,16 @@ public class AfterSaleService {
     }
 
     public Map<String, Object> detail(Long id) {
-        return find(id);
+        Map<String, Object> row = find(id);
+        tenantScope.assertAccessible(merchantIdOf(row), "售后单");
+        return row;
+    }
+
+    private static Long merchantIdOf(Map<String, Object> row) {
+        if (row == null || row.get("merchant_id") == null) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(row.get("merchant_id")));
     }
 
     private Map<String, Object> find(Long id) {

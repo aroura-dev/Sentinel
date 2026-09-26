@@ -3,6 +3,7 @@ package com.aroura.sentinel.web.controller.sentinel.tms;
 import com.aroura.sentinel.common.vo.BasicResultVO;
 import com.aroura.sentinel.web.annotation.RequireRole;
 import com.aroura.sentinel.web.service.sentinel.tms.InventoryService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,9 +26,11 @@ import java.util.Map;
 public class InventoryController {
 
     private final InventoryService inventoryService;
+    private final TenantScopeResolver tenantScope;
 
-    public InventoryController(InventoryService inventoryService) {
+    public InventoryController(InventoryService inventoryService, TenantScopeResolver tenantScope) {
         this.inventoryService = inventoryService;
+        this.tenantScope = tenantScope;
     }
 
     @GetMapping("/list")
@@ -37,7 +40,10 @@ public class InventoryController {
                               @RequestParam(required = false) Long merchantId,
                               @RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "10") int perPage) {
-        return BasicResultVO.success(inventoryService.list(sku, merchantId, page, perPage));
+        // merchantId 是客户端可控入参，此前直接透传进 SQL —— 商家传 ?merchantId=别家 即可越权。
+        // 现统一经归一化：MERCHANT 恒为自己的商家，平台角色保留代查看能力。
+        return BasicResultVO.success(
+                inventoryService.list(sku, tenantScope.normalizeRequested(merchantId), page, perPage));
     }
 
     @GetMapping("/flow")
@@ -46,7 +52,7 @@ public class InventoryController {
     public BasicResultVO flow(@RequestParam(required = false) String sku,
                               @RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "10") int perPage) {
-        return BasicResultVO.success(inventoryService.flow(sku, page, perPage));
+        return BasicResultVO.success(inventoryService.flow(sku, tenantScope.currentScope(), page, perPage));
     }
 
     @PostMapping("/adjust")

@@ -5,7 +5,7 @@ import com.aroura.sentinel.web.annotation.RequireRole;
 import com.aroura.sentinel.web.config.AuthInterceptor;
 import com.aroura.sentinel.web.exception.CommonException;
 import com.aroura.sentinel.web.service.sentinel.tms.BillingService;
-import com.aroura.sentinel.web.service.sentinel.tms.MerchantService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import com.aroura.sentinel.web.vo.CurrentUserVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -30,11 +30,11 @@ import java.util.Map;
 public class BillController {
 
     private final BillingService billingService;
-    private final MerchantService merchantService;
+    private final TenantScopeResolver tenantScope;
 
-    public BillController(BillingService billingService, MerchantService merchantService) {
+    public BillController(BillingService billingService, TenantScopeResolver tenantScope) {
         this.billingService = billingService;
-        this.merchantService = merchantService;
+        this.tenantScope = tenantScope;
     }
 
     @PostMapping("/generate")
@@ -115,23 +115,19 @@ public class BillController {
     }
 
     @GetMapping("/merchant/self")
-    @ApiOperation("当前商家账单汇总")
+    @ApiOperation("当前商家账单汇总（ADMIN 可传 merchantId 代查看）")
     @RequireRole({"MERCHANT", "ADMIN"})
-    public BasicResultVO merchantSelf(HttpServletRequest request) {
-        Long merchantId = resolveMerchant(request);
-        return BasicResultVO.success(billingService.merchantSelf(merchantId));
-    }
-
-    private Long resolveMerchant(HttpServletRequest request) {
-        Object attr = request.getAttribute(AuthInterceptor.CURRENT_USER_ATTR);
-        if (attr instanceof CurrentUserVO) {
-            CurrentUserVO user = (CurrentUserVO) attr;
-            Map<String, Object> merchant = merchantService.findByUsername(user.getUsername());
-            if (merchant != null) {
-                return Long.valueOf(String.valueOf(merchant.get("id")));
-            }
+    public BasicResultVO merchantSelf(@RequestParam(required = false) Long merchantId) {
+        // MERCHANT → 自身商家；ADMIN → 允许显式指定（代查看），未指定则回落到自身绑定。
+        // 原实现不判角色，导致 ADMIN 调用必抛「未找到当前商家」返回 500。
+        Long scope = tenantScope.normalizeRequested(merchantId);
+        if (scope == null) {
+            scope = tenantScope.currentScopeOrNull();
         }
-        throw new CommonException("未找到当前商家");
+        if (scope == null) {
+            throw new CommonException("未找到当前商家");
+        }
+        return BasicResultVO.success(billingService.merchantSelf(scope));
     }
 
     private String operator(HttpServletRequest request) {

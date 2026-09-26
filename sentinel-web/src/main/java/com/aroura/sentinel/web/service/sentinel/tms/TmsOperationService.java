@@ -7,6 +7,7 @@ import com.aroura.sentinel.web.exception.CommonException;
 import com.aroura.sentinel.web.service.AnomalyWorkflowService;
 import com.aroura.sentinel.web.service.SentinelNotifyService;
 import com.aroura.sentinel.web.service.sentinel.LogisticsService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,15 +33,17 @@ public class TmsOperationService {
     private final AnomalyWorkflowService anomalyWorkflowService;
     private final SentinelNotifyService notifyService;
     private final AuditLogService auditLogService;
+    private final TenantScopeResolver tenantScope;
 
     public TmsOperationService(LogisticsDao logisticsDao, LogisticsService logisticsService,
                                AnomalyWorkflowService anomalyWorkflowService, SentinelNotifyService notifyService,
-                               AuditLogService auditLogService) {
+                               AuditLogService auditLogService, TenantScopeResolver tenantScope) {
         this.logisticsDao = logisticsDao;
         this.logisticsService = logisticsService;
         this.anomalyWorkflowService = anomalyWorkflowService;
         this.notifyService = notifyService;
         this.auditLogService = auditLogService;
+        this.tenantScope = tenantScope;
     }
 
     /**
@@ -78,6 +81,8 @@ public class TmsOperationService {
         if (order == null) {
             throw new CommonException("订单不存在");
         }
+        // 归属断言紧跟取回之后，避免「校验」与「操作」之间订单被换手
+        tenantScope.assertAccessible(merchantIdOf(order), "订单");
         LogisticsNode node = anomalyNodeOf(type);
         if (node == null) {
             throw new CommonException("非法异常类型: " + type + "（可选 customs_delay/delivery_failed/lost/returned）");
@@ -131,6 +136,8 @@ public class TmsOperationService {
         if (order == null) {
             throw new CommonException("订单不存在");
         }
+        // 归属断言紧跟取回之后，避免「校验」与「操作」之间订单被换手
+        tenantScope.assertAccessible(merchantIdOf(order), "订单");
         boolean outbound = order.get("waybill_no") != null;
         String phone = body.containsKey("buyerPhone") ? String.valueOf(body.get("buyerPhone")) : strOrNull(order.get("buyer_phone"));
         String address = body.containsKey("buyerAddress") ? String.valueOf(body.get("buyerAddress")) : strOrNull(order.get("buyer_address"));
@@ -162,6 +169,8 @@ public class TmsOperationService {
         if (order == null) {
             throw new CommonException("订单不存在");
         }
+        // 归属断言紧跟取回之后，避免「校验」与「操作」之间订单被换手
+        tenantScope.assertAccessible(merchantIdOf(order), "订单");
         if (order.get("waybill_no") != null || !"CREATED".equals(String.valueOf(order.get("current_node")))) {
             throw new CommonException("订单已出库，不能直接取消，请走「售后退回」流程");
         }
@@ -214,5 +223,12 @@ public class TmsOperationService {
             default:
                 return "EXP-9999";
         }
+    }
+
+    private static Long merchantIdOf(Map<String, Object> row) {
+        if (row == null || row.get("merchant_id") == null) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(row.get("merchant_id")));
     }
 }

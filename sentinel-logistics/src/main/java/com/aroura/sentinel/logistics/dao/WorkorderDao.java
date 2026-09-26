@@ -91,8 +91,22 @@ public class WorkorderDao {
     }
 
     public Map<String, Object> queryById(Long id) {
-        List<Map<String, Object>> list = jdbcTemplate.queryForList(
-                "SELECT * FROM workorder WHERE id = ? AND is_deleted = 0", id);
+        return queryById(id, null);
+    }
+
+    /**
+     * 工单详情。{@code merchantId} 非空时限定为「本商家订单的工单」——
+     * workorder 表本身没有 merchant_id，须经 logistics_order 反查（与 {@link #queryPage} 同一谓词）。
+     */
+    public Map<String, Object> queryById(Long id, Long merchantId) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM workorder WHERE id = ? AND is_deleted = 0");
+        List<Object> args = new ArrayList<>();
+        args.add(id);
+        if (merchantId != null) {
+            sql.append(" AND order_no IN (SELECT order_no FROM logistics_order WHERE merchant_id = ? AND is_deleted = 0)");
+            args.add(merchantId);
+        }
+        List<Map<String, Object>> list = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -116,15 +130,29 @@ public class WorkorderDao {
     }
 
     public Map<String, Object> stats() {
+        return stats(null);
+    }
+
+    /**
+     * 工单统计。{@code merchantId} 非空时按本商家订单过滤，口径与 {@link #queryPage} 保持一致。
+     */
+    public Map<String, Object> stats(Long merchantId) {
+        StringBuilder scope = new StringBuilder();
+        List<Object> args = new ArrayList<>();
+        if (merchantId != null) {
+            scope.append(" AND order_no IN (SELECT order_no FROM logistics_order WHERE merchant_id = ? AND is_deleted = 0)");
+            args.add(merchantId);
+        }
+        String base = " FROM workorder WHERE is_deleted = 0" + scope;
         Map<String, Object> result = new HashMap<>(8);
         result.put("openWorkorderCount", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN'", Integer.class));
+                "SELECT COUNT(*)" + base + " AND status = 'OPEN'", Integer.class, args.toArray()));
         result.put("p0Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P0'", Integer.class));
+                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P0'", Integer.class, args.toArray()));
         result.put("p1Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P1'", Integer.class));
+                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P1'", Integer.class, args.toArray()));
         result.put("p2Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P2'", Integer.class));
+                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P2'", Integer.class, args.toArray()));
         return result;
     }
 

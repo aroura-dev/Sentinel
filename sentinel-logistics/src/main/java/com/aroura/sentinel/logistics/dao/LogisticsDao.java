@@ -146,8 +146,20 @@ public class LogisticsDao {
     }
 
     public Map<String, Object> listOrders(String orderNo, String status, int page, int perPage) {
+        return listOrders(orderNo, status, null, page, perPage);
+    }
+
+    /**
+     * 订单分页。{@code merchantScope} 为 null 表示不限制（平台角色 / 后台线程），
+     * 非 null 则只返回该商家的订单。
+     */
+    public Map<String, Object> listOrders(String orderNo, String status, Long merchantScope, int page, int perPage) {
         StringBuilder where = new StringBuilder(" WHERE is_deleted = 0");
         java.util.List<Object> args = new java.util.ArrayList<>();
+        if (merchantScope != null) {
+            where.append(" AND merchant_id = ?");
+            args.add(merchantScope);
+        }
         if (orderNo != null && !orderNo.trim().isEmpty()) {
             where.append(" AND order_no LIKE ?");
             args.add("%" + orderNo.trim() + "%");

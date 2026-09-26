@@ -95,9 +95,15 @@ public class WaybillDao {
                         + "AND o.current_node NOT IN ('DELIVERED','LOST','RETURNED')");
     }
 
-    public Map<String, Object> findPage(String orderNo, String waybillNo, String trackingNo, Long channelId, Long carrierId, int page, int perPage) {
+    public Map<String, Object> findPage(String orderNo, String waybillNo, String trackingNo, Long channelId,
+                                        Long carrierId, Long merchantScope, int page, int perPage) {
         StringBuilder where = new StringBuilder(" WHERE is_deleted = 0");
         List<Object> args = new java.util.ArrayList<>();
+        // merchantScope 为 null 表示「不限制」（平台角色 / 后台线程），而非「限定为空集」
+        if (merchantScope != null) {
+            where.append(" AND merchant_id = ?");
+            args.add(merchantScope);
+        }
         if (orderNo != null && !orderNo.trim().isEmpty()) {
             where.append(" AND order_no LIKE ?");
             args.add("%" + orderNo.trim() + "%");

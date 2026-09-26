@@ -13,6 +13,7 @@ import com.aroura.sentinel.logistics.model.tms.FreightQuote;
 import com.aroura.sentinel.logistics.model.tms.Waybill;
 import com.aroura.sentinel.web.exception.CommonException;
 import com.aroura.sentinel.web.service.SentinelNotifyService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -44,11 +45,13 @@ public class WaybillService {
     private final SentinelNotifyService notifyService;
     private final SlaService slaService;
     private final AuditLogService auditLogService;
+    private final TenantScopeResolver tenantScope;
 
     public WaybillService(WaybillDao waybillDao, LogisticsDao logisticsDao, CarrierChannelDao channelDao,
                           CarrierDao carrierDao, FreightCalculator freightCalculator,
                           SentinelNotifyService notifyService, SlaService slaService,
-                          AuditLogService auditLogService) {
+                          AuditLogService auditLogService, TenantScopeResolver tenantScope) {
+        this.tenantScope = tenantScope;
         this.waybillDao = waybillDao;
         this.logisticsDao = logisticsDao;
         this.channelDao = channelDao;
@@ -317,8 +320,9 @@ public class WaybillService {
         waybillDao.markDeliveredByOrderNo(orderNo, new Date());
     }
 
-    public Map<String, Object> list(String orderNo, String waybillNo, String trackingNo, Long channelId, Long carrierId, int page, int perPage) {
-        return waybillDao.findPage(orderNo, waybillNo, trackingNo, channelId, carrierId, page, perPage);
+    public Map<String, Object> list(String orderNo, String waybillNo, String trackingNo, Long channelId,
+                                    Long carrierId, Long merchantScope, int page, int perPage) {
+        return waybillDao.findPage(orderNo, waybillNo, trackingNo, channelId, carrierId, merchantScope, page, perPage);
     }
 
     public Map<String, Object> detail(String waybillNo) {
@@ -326,7 +330,16 @@ public class WaybillService {
         if (wb == null) {
             throw new CommonException("运单不存在: " + waybillNo);
         }
+        // 归属断言放在这里，list/detail/tracks 三个调用方一并覆盖
+        tenantScope.assertAccessible(merchantIdOf(wb), "运单");
         return wb;
+    }
+
+    private static Long merchantIdOf(Map<String, Object> row) {
+        if (row == null || row.get("merchant_id") == null) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(row.get("merchant_id")));
     }
 
     /* ---------- 聚合工具 ---------- */

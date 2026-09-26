@@ -4,6 +4,7 @@ import com.aroura.sentinel.common.vo.BasicResultVO;
 import com.aroura.sentinel.logistics.model.LogisticsTrack;
 import com.aroura.sentinel.web.annotation.RequireRole;
 import com.aroura.sentinel.web.service.sentinel.LogisticsService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,9 +28,11 @@ import java.util.Map;
 public class LogisticsController {
 
     private final LogisticsService logisticsService;
+    private final TenantScopeResolver tenantScope;
 
-    public LogisticsController(LogisticsService logisticsService) {
+    public LogisticsController(LogisticsService logisticsService, TenantScopeResolver tenantScope) {
         this.logisticsService = logisticsService;
+        this.tenantScope = tenantScope;
     }
 
     @PostMapping("/mock/create")
@@ -46,7 +49,11 @@ public class LogisticsController {
     @ApiOperation("查询物流订单")
     public BasicResultVO getOrder(@PathVariable String orderNo) {
         Map<String, Object> row = logisticsService.getOrder(orderNo);
-        return row == null ? BasicResultVO.fail("订单不存在") : BasicResultVO.success(row);
+        if (row == null) {
+            return BasicResultVO.fail("订单不存在");
+        }
+        tenantScope.assertAccessible(merchantIdOf(row), "订单");
+        return BasicResultVO.success(row);
     }
 
     @PostMapping("/mock/advance")
@@ -78,6 +85,12 @@ public class LogisticsController {
     @GetMapping("/track/{orderNo}")
     @ApiOperation("查询物流轨迹（PRD 8.1）")
     public BasicResultVO track(@PathVariable String orderNo) {
+        // logistics_track 无 merchant_id，须先经订单判定归属；订单不存在时按"不存在"处理
+        Map<String, Object> row = logisticsService.getOrder(orderNo);
+        if (row == null) {
+            return BasicResultVO.fail("订单不存在");
+        }
+        tenantScope.assertAccessible(merchantIdOf(row), "订单");
         return BasicResultVO.success(logisticsService.tracks(orderNo));
     }
 
@@ -88,11 +101,19 @@ public class LogisticsController {
     }
 
     @GetMapping("/order/list")
-    @ApiOperation("查询所有订单（DB 分页）")
+    @ApiOperation("查询所有订单（DB 分页；MERCHANT 仅见自己商家）")
     public BasicResultVO listOrders(@RequestParam(required = false) String orderNo,
                                     @RequestParam(required = false) String status,
                                     @RequestParam(defaultValue = "1") Integer page,
                                     @RequestParam(defaultValue = "10") Integer perPage) {
-        return BasicResultVO.success(logisticsService.listOrders(orderNo, status, page, perPage));
+        return BasicResultVO.success(logisticsService.listOrders(orderNo, status,
+                tenantScope.currentScope(), page, perPage));
+    }
+
+    private static Long merchantIdOf(Map<String, Object> row) {
+        if (row == null || row.get("merchant_id") == null) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(row.get("merchant_id")));
     }
 }

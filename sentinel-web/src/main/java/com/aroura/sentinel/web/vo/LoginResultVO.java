@@ -15,4 +15,10 @@ public class LoginResultVO {
     private String role;
     private String nickname;
     private String avatar;
+
+    /** sentinel_user.id */
+    private Long userId;
+
+    /** 绑定的商家ID；非商家角色或未绑定时为 null */
+    private Long merchantId;
 }

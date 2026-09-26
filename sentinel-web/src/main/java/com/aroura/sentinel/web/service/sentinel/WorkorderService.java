@@ -51,12 +51,22 @@ public class WorkorderService {
         return workorderDao.stats();
     }
 
+    /** 商家视角的工单统计；{@code merchantId} 为 null 表示平台视角（不限制）。 */
+    public Map<String, Object> stats(Long merchantId) {
+        return workorderDao.stats(merchantId);
+    }
+
     public Map<String, Object> list(String status, String level, String orderNo, Long merchantId, int page, int perPage) {
         return workorderDao.queryPage(status, level, orderNo, merchantId, page, perPage);
     }
 
     public Map<String, Object> detail(Long id) {
         return workorderDao.queryById(id);
+    }
+
+    /** 商家视角的工单详情；{@code merchantId} 为 null 表示平台视角（不限制）。 */
+    public Map<String, Object> detail(Long id, Long merchantId) {
+        return workorderDao.queryById(id, merchantId);
     }
 
     public boolean push(Long workorderId) {

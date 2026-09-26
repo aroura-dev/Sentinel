@@ -120,6 +120,11 @@ public class LogisticsService {
         return logisticsDao.listOrders(orderNo, status, page, perPage);
     }
 
+    /** 带租户作用域的订单分页；{@code merchantScope} 为 null 表示不限制。 */
+    public Map<String, Object> listOrders(String orderNo, String status, Long merchantScope, int page, int perPage) {
+        return logisticsDao.listOrders(orderNo, status, merchantScope, page, perPage);
+    }
+
     /**
      * 状态机可视化：所有节点 + 可转移的下一节点
      */
