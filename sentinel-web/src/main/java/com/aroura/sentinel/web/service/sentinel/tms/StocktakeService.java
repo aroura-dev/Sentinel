@@ -34,15 +34,21 @@ public class StocktakeService {
         StringBuilder sql = new StringBuilder(
                 "SELECT s.*, w.warehouse_name FROM stocktake s LEFT JOIN warehouse w ON w.id = s.warehouse_id AND w.is_deleted = 0 "
                         + "WHERE s.is_deleted = 0");
-        if (status != null && !status.isEmpty()) {
-            sql.append(" AND s.status = '").append(status).append("'");
+        List<Object> args = new ArrayList<>();
+        if (status != null && !status.trim().isEmpty()) {
+            // 原实现把 status 直接拼进字符串，既是注入口（' OR '1'='1 可绕过），
+            // 也会让含单引号的正常输入直接报语法错
+            sql.append(" AND s.status = ?");
+            args.add(status.trim());
         }
-        int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + sql + ") t", Integer.class);
-        int offset = Math.max((page - 1) * perPage, 0);
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + sql + ") t", Integer.class, args.toArray());
+        List<Object> pageArgs = new ArrayList<>(args);
+        pageArgs.add(perPage);
+        pageArgs.add(Math.max((page - 1) * perPage, 0));
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                sql + " ORDER BY s.id DESC LIMIT " + offset + "," + perPage);
+                sql + " ORDER BY s.id DESC LIMIT ? OFFSET ?", pageArgs.toArray());
         Map<String, Object> res = new HashMap<>(4);
-        res.put("count", count);
+        res.put("count", count == null ? 0 : count);
         res.put("rows", rows);
         return res;
     }
