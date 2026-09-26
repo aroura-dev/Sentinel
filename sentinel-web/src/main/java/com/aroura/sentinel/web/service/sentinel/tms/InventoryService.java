@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -88,6 +89,7 @@ public class InventoryService {
     }
 
     /** 出入库登记：更新库存并记流水（业务单据驱动，bizNo 为订单/运单号） */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> adjust(String sku, String bizNo, String bizType, int qty, Long warehouseId) {
         Long wh = warehouseId != null ? warehouseId : 1L;
         List<Map<String, Object>> invs = jdbcTemplate.queryForList(

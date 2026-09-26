@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.logistics.dao.LogisticsDao;
 import com.aroura.sentinel.web.config.AuthInterceptor;
 import com.aroura.sentinel.web.exception.CommonException;
@@ -31,6 +32,7 @@ public class OrderReviewService {
         return logisticsDao.findReviewPage(status, keyword, page, perPage);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> review(String orderNo, boolean approve, String reason) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order == null) {

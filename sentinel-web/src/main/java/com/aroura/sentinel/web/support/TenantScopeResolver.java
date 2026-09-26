@@ -30,8 +30,9 @@ import javax.servlet.http.HttpServletRequest;
  * </ul>
  *
  * <h3>为什么不做成 ThreadLocal</h3>
- * 本仓库没有 {@code @Transactional} 也没有作用于 DAO 层的 AOP，Tomcat 线程复用下一旦某条路径
- * 漏了清理，上一个租户的作用域会静默套用到下一个请求 —— 这是隔离方案里最严重的失效模式。
+ * 本仓库没有作用于 DAO 层的 AOP，事务边界是在部分业务方法上逐个标注的（见各 service 的
+ * {@code @Transactional}），并非全覆盖；Tomcat 线程复用下一旦某条路径漏了清理，
+ * 上一个租户的作用域会静默套用到下一个请求 —— 这是隔离方案里最严重的失效模式。
  * 因此作用域始终以显式参数下传，DAO 层谓词只是机制、不是安全边界，
  * <b>安全判定必须在知道角色的这一层完成</b>。
  *

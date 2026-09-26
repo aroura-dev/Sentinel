@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +34,7 @@ public class ApiKeyService {
         return rows;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> create(String appName, String company, String contactName,
                                       String contactPhone, String contactEmail, String scope,
                                       String remark, String createdBy) {
@@ -53,6 +55,7 @@ public class ApiKeyService {
         return res;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> toggle(Long id) {
         Map<String, Object> k = find(id);
         int current = Integer.parseInt(String.valueOf(k.get("status")));
@@ -64,6 +67,7 @@ public class ApiKeyService {
         return res;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         jdbcTemplate.update("UPDATE api_key SET is_deleted = 1 WHERE id = ?", id);
         auditLogService.log("开放API", "吊销凭证", String.valueOf(id), "");

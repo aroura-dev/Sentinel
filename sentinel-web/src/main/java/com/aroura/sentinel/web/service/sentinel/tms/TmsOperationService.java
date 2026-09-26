@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.logistics.dao.LogisticsDao;
 import com.aroura.sentinel.logistics.enums.LogisticsNode;
 import com.aroura.sentinel.logistics.model.LogisticsTrack;
@@ -49,6 +50,7 @@ public class TmsOperationService {
     /**
      * 手动推进一个物流节点（校验状态机合法转移）
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> advance(String orderNo) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order != null) {
@@ -76,6 +78,7 @@ public class TmsOperationService {
     /**
      * 手动模拟异常：把订单强制置入异常节点，写轨迹 + 触发异常责任链
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> injectAnomaly(String orderNo, String type) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order == null) {
@@ -164,6 +167,7 @@ public class TmsOperationService {
      * 取消订单：仅允许未出库（CREATED 且未生成运单）直接取消。
      * 已出库订单需走售后退回流程，不允许直接取消。
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> cancelOrder(String orderNo) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order == null) {

@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ public class RiskRuleService {
         return jdbcTemplate.queryForList("SELECT * FROM risk_rule WHERE is_deleted = 0 ORDER BY id DESC");
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> save(String name, String scene, String triggerStatus, String action, String actionConfig, Integer enabled) {
         jdbcTemplate.update(
                 "INSERT INTO risk_rule (name, scene, trigger_status, action, action_config, enabled) VALUES (?,?,?,?,?,?)",
@@ -36,6 +38,7 @@ public class RiskRuleService {
         return find(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> update(Long id, String name, String scene, String triggerStatus, String action, String actionConfig, Integer enabled) {
         jdbcTemplate.update(
                 "UPDATE risk_rule SET name = ?, scene = ?, trigger_status = ?, action = ?, action_config = ?, enabled = ? WHERE id = ?",
@@ -44,6 +47,7 @@ public class RiskRuleService {
         return find(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         jdbcTemplate.update("UPDATE risk_rule SET is_deleted = 1 WHERE id = ?", id);
         auditLogService.log("风险预警", "删除处置规则", String.valueOf(id), "");
@@ -75,6 +79,7 @@ public class RiskRuleService {
     }
 
     /** 对某订单执行处置动作（简化：记录留痕并返回处置说明） */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> execute(Long ruleId, String orderNo) {
         Map<String, Object> rule = find(ruleId);
         String action = String.valueOf(rule.get("action"));

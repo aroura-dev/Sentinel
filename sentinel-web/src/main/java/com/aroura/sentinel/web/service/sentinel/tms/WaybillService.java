@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
@@ -67,6 +68,7 @@ public class WaybillService {
      * 整单出库：幂等（已有运单直接返回）；分批出库（partial=true）：允许同一订单多次出库，
      * 每次可指定本次出库商品子集 items（不传则出全量），运单记录本次出库商品明细，订单商品保持全量。
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> generate(String orderNo, String items, boolean partial) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order == null) {
@@ -168,6 +170,7 @@ public class WaybillService {
      * 合并运单：同商家、同目的地、未出库、已审核订单合并生成一张运单。
      * 运费 = 各订单运费快照合计；商品明细 = 各单合并；历史记录写入审计（MERGE），无需新表。
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> merge(List<String> orderNos) {
         if (orderNos == null || orderNos.size() < 2) {
             throw new CommonException("合并运单至少需要 2 个订单");

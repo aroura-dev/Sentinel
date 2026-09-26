@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.web.support.TenantScopeResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,7 @@ public class AfterSaleService {
     }
 
     /** 登记退货：从订单生成售后单，订单节点置为 RETURNED */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> register(String orderNo, String reason, String type) {
         List<Map<String, Object>> orders = jdbcTemplate.queryForList(
                 "SELECT * FROM logistics_order WHERE order_no = ? AND is_deleted = 0", orderNo);
@@ -86,6 +88,7 @@ public class AfterSaleService {
     }
 
     /** 受理并退款 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> refund(Long id) {
         Map<String, Object> s = find(id);
         String orderNo = String.valueOf(s.get("order_no"));
@@ -99,6 +102,7 @@ public class AfterSaleService {
     }
 
     /** 重发（换货） */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> reship(Long id) {
         Map<String, Object> s = find(id);
         String orderNo = String.valueOf(s.get("order_no"));
@@ -112,6 +116,7 @@ public class AfterSaleService {
     }
 
     /** 关闭售后 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> close(Long id) {
         Map<String, Object> s = find(id);
         String orderNo = String.valueOf(s.get("order_no"));

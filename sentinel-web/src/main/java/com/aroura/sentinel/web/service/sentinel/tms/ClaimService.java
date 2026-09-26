@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.logistics.dao.WorkorderDao;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class ClaimService {
     }
 
     /** 登记理赔：校验订单存在、无进行中的理赔，再落一条工单进入待审批 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> register(String orderNo, String type, String description,
                                         String liability, BigDecimal claimAmount) {
         if (orderNo == null || orderNo.trim().isEmpty()) {
@@ -76,6 +78,7 @@ public class ClaimService {
     }
 
     /** 审批通过：确定核定赔付金额，进入「待赔付」 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> approve(Long id, BigDecimal compensationAmount) {
         Map<String, Object> row = mustClaim(id);
         requireStatus(row, "SUBMITTED", "审批通过");
@@ -90,6 +93,7 @@ public class ClaimService {
     }
 
     /** 执行赔付：待赔付 → 已赔付 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> pay(Long id) {
         Map<String, Object> row = mustClaim(id);
         requireStatus(row, "APPROVED", "确认赔付");
@@ -100,6 +104,7 @@ public class ClaimService {
     }
 
     /** 驳回：待审批/待赔付均可驳回，记录驳回原因 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> reject(Long id, String reason) {
         Map<String, Object> row = mustClaim(id);
         String st = str(row, "claim_status");

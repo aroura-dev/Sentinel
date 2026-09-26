@@ -81,6 +81,7 @@ public class WorkorderService {
     /**
      * Agent 处理异常并创建工单
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> process(String orderNo, String anomalyDesc) {
         String traceId = agentCallLogService.generateTraceId();
         JSONObject result = workorderAgent.process(anomalyDesc, orderNo, traceId);
@@ -94,6 +95,7 @@ public class WorkorderService {
     /**
      * AI 诊断工单：调用 AnomalyDiagnoseAgent，持久化 agent_diagnosis，返回 {reason, suggestion, priority}
      */
+    @Transactional(rollbackFor = Exception.class)
     public JSONObject diagnose(Long id) {
         Map<String, Object> row = workorderDao.queryById(id);
         if (row == null) {
@@ -156,6 +158,7 @@ public class WorkorderService {
     /**
      * 登记索赔：责任方/索赔额/理赔额，工单置为 RESOLVED
      */
+    @Transactional(rollbackFor = Exception.class)
     public boolean claim(Long id, String liability, BigDecimal claimAmount,
                          BigDecimal compensationAmount, String resolution) {
         Map<String, Object> row = workorderDao.queryById(id);

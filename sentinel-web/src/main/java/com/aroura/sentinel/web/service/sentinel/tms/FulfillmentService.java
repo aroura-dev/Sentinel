@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
@@ -109,6 +110,7 @@ public class FulfillmentService {
     /**
      * 建单（校验渠道覆盖目的地 + 运费快照）
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> createOrder(Map<String, Object> body) {
         Long merchantId = Long.valueOf(String.valueOf(body.get("merchantId")));
         Long channelId = Long.valueOf(String.valueOf(body.get("channelId")));

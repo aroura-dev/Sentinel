@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.logistics.dao.tms.BillDao;
 import com.aroura.sentinel.logistics.dao.tms.BillItemDao;
 import com.aroura.sentinel.logistics.dao.tms.WaybillDao;
@@ -45,6 +46,7 @@ public class BillingService {
     /**
      * 手动入账：把一单未入账运单加入 DRAFT 账单（要求承运商一致）
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> addWaybill(Long billId, String waybillNo) {
         Map<String, Object> bill = billDao.findById(billId);
         if (bill == null || !"DRAFT".equals(String.valueOf(bill.get("status")))) {
@@ -83,6 +85,7 @@ public class BillingService {
         return detail(billId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> generate(Long carrierId, String periodStart, String periodEnd) {
         Date ps = parseDate(periodStart);
         Date pe = parseDate(periodEnd);
@@ -103,6 +106,7 @@ public class BillingService {
     /**
      * 状态机流转：submit/verify/settle/reject/reopen
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> transition(Long billId, String action, String operator, String reason) {
         Map<String, Object> row = billDao.findById(billId);
         if (row == null) {

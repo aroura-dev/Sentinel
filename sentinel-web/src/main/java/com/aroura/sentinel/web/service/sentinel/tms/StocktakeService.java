@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.web.exception.CommonException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,7 @@ public class StocktakeService {
         return result;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> create(Long warehouseId, String scope, Long merchantId,
                                       String remark, List<String> skus) {
         if (warehouseId == null) {
@@ -102,6 +104,7 @@ public class StocktakeService {
         return detail(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> saveCount(Long id, List<Map<String, Object>> counts) {
         Map<String, Object> head = findHead(id);
         if (!"DRAFT".equals(String.valueOf(head.get("status")))) {
@@ -127,6 +130,7 @@ public class StocktakeService {
         return detail(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> finish(Long id) {
         Map<String, Object> head = findHead(id);
         if (!"DRAFT".equals(String.valueOf(head.get("status")))) {
