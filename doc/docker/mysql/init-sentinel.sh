@@ -32,6 +32,7 @@ sentinel_scripts=(
   "20260917-seed-user-avatars.sql"
   "20260917-fill-user-contacts.sql"
   "20260917-fill-real-business-data.sql"
+  "zz-sentinel-stocktake.sql"
 )
 
 for file in "${sentinel_scripts[@]}"; do
