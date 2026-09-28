@@ -1,0 +1,5 @@
+# 压测产物：体积大（单档 JTL 可达数十 MB）且可由 run-ramp.sh 重新生成，不入库
+*.jtl
+stats-*.csv
+jmeter-*.log
+html-*/
