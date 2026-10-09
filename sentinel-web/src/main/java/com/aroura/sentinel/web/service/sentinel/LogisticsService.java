@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.alibaba.fastjson2.JSONObject;
 import com.aroura.sentinel.logistics.dao.LogisticsDao;
 import com.aroura.sentinel.logistics.enums.LogisticsNode;
@@ -76,6 +77,7 @@ public class LogisticsService {
      *
      * @return 下一条轨迹；订单不存在或已终态返回 null
      */
+    @Transactional(rollbackFor = Exception.class)
     public LogisticsTrack advance(String orderNo) {
         Map<String, Object> row = logisticsDao.findOrderByNo(orderNo);
         if (row == null) {
@@ -118,6 +120,11 @@ public class LogisticsService {
 
     public Map<String, Object> listOrders(String orderNo, String status, int page, int perPage) {
         return logisticsDao.listOrders(orderNo, status, page, perPage);
+    }
+
+    /** 带租户作用域的订单分页；{@code merchantScope} 为 null 表示不限制。 */
+    public Map<String, Object> listOrders(String orderNo, String status, Long merchantScope, int page, int perPage) {
+        return logisticsDao.listOrders(orderNo, status, merchantScope, page, perPage);
     }
 
     /**

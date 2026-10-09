@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.web.dao.SentinelUserDao;
 import com.aroura.sentinel.web.exception.CommonException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -49,6 +50,7 @@ public class UserService {
         return ROLES;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> create(String username, String password, String nickname,
                                       String phone, String email, String role, String status) {
         String normalizedUsername = required(username, "用户名不能为空").trim();
@@ -81,6 +83,7 @@ public class UserService {
         return userDao.findById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> update(Long id, String nickname, String phone, String email,
                                       String role, String status) {
         Map<String, Object> user = userDao.findById(id);
@@ -108,6 +111,7 @@ public class UserService {
     }
 
     /** 重置密码（管理员操作，保留审计）。 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> resetPassword(Long id, String password) {
         Map<String, Object> user = userDao.findById(id);
         if (user == null) {
@@ -121,6 +125,7 @@ public class UserService {
         return userDao.findById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> toggle(Long id) {
         Map<String, Object> user = userDao.findById(id);
         if (user == null) {

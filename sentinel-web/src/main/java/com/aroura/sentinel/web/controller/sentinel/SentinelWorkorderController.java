@@ -2,18 +2,13 @@ package com.aroura.sentinel.web.controller.sentinel;
 
 import com.aroura.sentinel.common.vo.BasicResultVO;
 import com.aroura.sentinel.web.annotation.RequireRole;
-import com.aroura.sentinel.web.config.AuthInterceptor;
-import com.aroura.sentinel.web.exception.CommonException;
 import com.aroura.sentinel.web.service.sentinel.WorkorderService;
-import com.aroura.sentinel.web.service.sentinel.tms.MerchantService;
-import com.aroura.sentinel.web.vo.CurrentUserVO;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.math.BigDecimal;
-import javax.servlet.http.HttpServletRequest;
-import java.util.Map;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,45 +25,43 @@ import org.springframework.web.bind.annotation.RestController;
 @Api(tags = "Sentinel 工单接口")
 public class SentinelWorkorderController {
 
-    private final WorkorderService workorderService;
-    private final MerchantService merchantService;
+    /** 工单页在商家菜单内，故 MERCHANT 一并放行，由租户作用域限制可见范围 */
+    private static final String[] WORKORDER_ROLES =
+            {"ADMIN", "OPERATOR", "FINANCE", "CUSTOMER_SERVICE", "MERCHANT"};
 
-    public SentinelWorkorderController(WorkorderService workorderService, MerchantService merchantService) {
+    private final WorkorderService workorderService;
+    private final TenantScopeResolver tenantScope;
+
+    public SentinelWorkorderController(WorkorderService workorderService, TenantScopeResolver tenantScope) {
         this.workorderService = workorderService;
-        this.merchantService = merchantService;
+        this.tenantScope = tenantScope;
     }
 
     @GetMapping("/stats")
     @ApiOperation("工单统计")
+    @RequireRole({"ADMIN", "OPERATOR", "FINANCE", "CUSTOMER_SERVICE", "MERCHANT"})
     public BasicResultVO stats() {
-        return BasicResultVO.success(workorderService.stats());
+        return BasicResultVO.success(workorderService.stats(tenantScope.currentScope()));
     }
 
     @GetMapping("/list")
     @ApiOperation("工单分页")
+    @RequireRole({"ADMIN", "OPERATOR", "FINANCE", "CUSTOMER_SERVICE", "MERCHANT"})
     public BasicResultVO list(@RequestParam(required = false) String status,
                               @RequestParam(required = false) String level,
                               @RequestParam(required = false) String orderNo,
                               @RequestParam(defaultValue = "1") Integer page,
-                              @RequestParam(defaultValue = "10") Integer perPage,
-                              HttpServletRequest request) {
-        Long merchantId = null;
-        Object attr = request.getAttribute(AuthInterceptor.CURRENT_USER_ATTR);
-        if (attr instanceof CurrentUserVO && "MERCHANT".equals(((CurrentUserVO) attr).getRole())) {
-            // 商家数据隔离：只能看自己订单的工单
-            Map<String, Object> m = merchantService.findByUsername(((CurrentUserVO) attr).getUsername());
-            if (m == null) {
-                throw new CommonException("未找到当前商家");
-            }
-            merchantId = Long.valueOf(String.valueOf(m.get("id")));
-        }
-        return BasicResultVO.success(workorderService.list(status, level, orderNo, merchantId, page, perPage));
+                              @RequestParam(defaultValue = "10") Integer perPage) {
+        // 商家数据隔离：只能看自己订单的工单
+        return BasicResultVO.success(workorderService.list(status, level, orderNo,
+                tenantScope.currentScope(), page, perPage));
     }
 
     @GetMapping("/{id}")
     @ApiOperation("工单详情")
+    @RequireRole({"ADMIN", "OPERATOR", "FINANCE", "CUSTOMER_SERVICE", "MERCHANT"})
     public BasicResultVO detail(@PathVariable Long id) {
-        Object row = workorderService.detail(id);
+        Object row = workorderService.detail(id, tenantScope.currentScope());
         return row == null ? BasicResultVO.fail("工单不存在") : BasicResultVO.success(row);
     }
 

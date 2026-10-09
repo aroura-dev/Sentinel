@@ -7,7 +7,7 @@
 
 USE `sentinel`;
 
--- 1. 统一历史目的国写法：Russia -> RU
+-- 1. 统一历史目的区域写法：Russia -> GD
 UPDATE logistics_order SET destination_country = 'RU' WHERE destination_country = 'Russia' AND is_deleted = 0;
 
 -- 2. RU 订单：俄语买家（真实俄罗斯姓名/城市/街道/邮编）
@@ -90,7 +90,7 @@ UPDATE logistics_order o SET
     buyer_language = 'de'
 WHERE o.is_deleted = 0 AND o.destination_country = 'DE';
 
--- 6. 清理无目的国的孤儿订单（兜底按语言）
+-- 6. 清理无目的区域的孤儿订单（兜底按语言）
 UPDATE logistics_order o SET
     buyer_id = CASE WHEN buyer_id IS NULL OR buyer_id LIKE 'buyer%' OR buyer_id = '' THEN CONCAT('buyer.', o.id, '@mail.com') ELSE buyer_id END,
     buyer_language = CASE WHEN buyer_language NOT IN ('ru','en','es','pt','de') THEN 'en' ELSE buyer_language END

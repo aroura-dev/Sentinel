@@ -246,7 +246,7 @@ function timeFor(v) { return v ? String(v).replace('T', ' ').slice(5, 16) : '' }
 function nodeLabel(node) {
   return {
     CREATED: '已创建', WAREHOUSE_OUT: '已出库', DOMESTIC_PICKED: '揽收', EXPORT_CUSTOMS: '中转分拨',
-    IN_TRANSIT: '干线运输', IMPORT_CUSTOMS: '进口中转', LAST_MILE: '末端派送', DELIVERED: '已签收',
+    IN_TRANSIT: '干线运输', IMPORT_CUSTOMS: '到达分拨', LAST_MILE: '末端派送', DELIVERED: '已签收',
     CUSTOMS_DELAY: '中转延误', DELIVERY_FAILED: '派送失败', LOST: '丢件', RETURNED: '退回'
   }[node] || node
 }

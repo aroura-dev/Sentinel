@@ -51,12 +51,22 @@ public class WorkorderService {
         return workorderDao.stats();
     }
 
+    /** 商家视角的工单统计；{@code merchantId} 为 null 表示平台视角（不限制）。 */
+    public Map<String, Object> stats(Long merchantId) {
+        return workorderDao.stats(merchantId);
+    }
+
     public Map<String, Object> list(String status, String level, String orderNo, Long merchantId, int page, int perPage) {
         return workorderDao.queryPage(status, level, orderNo, merchantId, page, perPage);
     }
 
     public Map<String, Object> detail(Long id) {
         return workorderDao.queryById(id);
+    }
+
+    /** 商家视角的工单详情；{@code merchantId} 为 null 表示平台视角（不限制）。 */
+    public Map<String, Object> detail(Long id, Long merchantId) {
+        return workorderDao.queryById(id, merchantId);
     }
 
     public boolean push(Long workorderId) {
@@ -71,6 +81,7 @@ public class WorkorderService {
     /**
      * Agent 处理异常并创建工单
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> process(String orderNo, String anomalyDesc) {
         String traceId = agentCallLogService.generateTraceId();
         JSONObject result = workorderAgent.process(anomalyDesc, orderNo, traceId);
@@ -84,6 +95,7 @@ public class WorkorderService {
     /**
      * AI 诊断工单：调用 AnomalyDiagnoseAgent，持久化 agent_diagnosis，返回 {reason, suggestion, priority}
      */
+    @Transactional(rollbackFor = Exception.class)
     public JSONObject diagnose(Long id) {
         Map<String, Object> row = workorderDao.queryById(id);
         if (row == null) {
@@ -108,6 +120,11 @@ public class WorkorderService {
             return false;
         }
         String current = String.valueOf(row.get("status"));
+        Object versionValue = row.get("version");
+        if (!(versionValue instanceof Number)) {
+            throw new IllegalStateException("工单缺少乐观锁版本，无法安全更新");
+        }
+        long expectedVersion = ((Number) versionValue).longValue();
         String target = status == null ? "" : status.trim().toUpperCase();
         if (current.equalsIgnoreCase(target)) {
             // 幂等：目标状态与当前一致，直接视为成功
@@ -122,7 +139,7 @@ public class WorkorderService {
         WorkOrderStateTransition.requireValid(from, to);
         // P0-3 权限矩阵：角色与目标状态必须匹配（无请求上下文视为系统流转）
         WorkOrderStatePermission.requireAllowed(auditLogService.currentRole(), to);
-        int updated = workorderDao.updateStatusWithVersion(id, current, to.getCode());
+        int updated = workorderDao.updateStatusWithVersion(id, current, expectedVersion, to.getCode());
         if (updated == 0) {
             throw new IllegalStateException("工单状态已被并发修改，请刷新后重试");
         }
@@ -146,6 +163,7 @@ public class WorkorderService {
     /**
      * 登记索赔：责任方/索赔额/理赔额，工单置为 RESOLVED
      */
+    @Transactional(rollbackFor = Exception.class)
     public boolean claim(Long id, String liability, BigDecimal claimAmount,
                          BigDecimal compensationAmount, String resolution) {
         Map<String, Object> row = workorderDao.queryById(id);

@@ -32,11 +32,15 @@ public class ProductDao {
         return key == null ? null : key.longValue();
     }
 
+    /**
+     * 更新商品。<b>刻意不改 {@code merchant_id}</b>：商家归属是独立的归属变更动作，
+     * 不应藏在普通编辑里 —— 否则任何有编辑权的调用方都能靠覆写它把别人的商品"改走"。
+     */
     public void update(Product p) {
         jdbcTemplate.update(
-                "UPDATE product SET merchant_id=?, sku=?, name=?, hs_code=?, declared_value=?, currency=?, weight_kg=?, volume_l=?, origin_country=?, status=? "
+                "UPDATE product SET sku=?, name=?, hs_code=?, declared_value=?, currency=?, weight_kg=?, volume_l=?, origin_country=?, status=? "
                         + "WHERE id=? AND is_deleted=0",
-                p.getMerchantId(), p.getSku(), p.getName(), p.getHsCode(), p.getDeclaredValue(), p.getCurrency(),
+                p.getSku(), p.getName(), p.getHsCode(), p.getDeclaredValue(), p.getCurrency(),
                 p.getWeightKg(), p.getVolumeL(), p.getOriginCountry(), p.getStatus(), p.getId());
     }
 

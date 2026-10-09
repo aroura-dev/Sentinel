@@ -97,9 +97,14 @@ public class AgentCallLogDao {
         String whereSql = where.toString();
 
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_call_log" + whereSql, Integer.class, finalArgs);
+        // whereSql 里的 ? 必须一并绑定：原先只传了分页参数，导致任何筛选条件都会
+        // 报 "No value specified for parameter N"（现象是 count 正常、列表 500）
+        Object[] pageArgs = Arrays.copyOf(finalArgs, idx + 2);
+        pageArgs[idx] = perPage;
+        pageArgs[idx + 1] = (page - 1) * perPage;
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT * FROM agent_call_log" + whereSql + " ORDER BY id DESC LIMIT ? OFFSET ?",
-                new Object[]{perPage, (page - 1) * perPage});
+                pageArgs);
 
         Map<String, Object> result = new HashMap<>(4);
         result.put("count", count == null ? 0 : count);

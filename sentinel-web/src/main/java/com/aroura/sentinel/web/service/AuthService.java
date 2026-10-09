@@ -1,7 +1,9 @@
 package com.aroura.sentinel.web.service;
 
+import com.aroura.sentinel.web.config.SessionCodec;
 import com.aroura.sentinel.web.dao.SentinelUserDao;
 import com.aroura.sentinel.web.email.EmailCodeService;
+import com.aroura.sentinel.web.service.sentinel.tms.MerchantService;
 import com.aroura.sentinel.web.sms.SmsCodeService;
 import com.aroura.sentinel.web.vo.CurrentUserVO;
 import com.aroura.sentinel.web.vo.LoginResultVO;
@@ -40,6 +42,7 @@ public class AuthService {
     private final SentinelUserDao userDao;
     private final SmsCodeService smsCodeService;
     private final EmailCodeService emailCodeService;
+    private final MerchantService merchantService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${sentinel.login.token-ttl-seconds:7200}")
@@ -52,11 +55,13 @@ public class AuthService {
     private String registerDefaultRole;
 
     public AuthService(StringRedisTemplate redisTemplate, SentinelUserDao userDao,
-                       SmsCodeService smsCodeService, EmailCodeService emailCodeService) {
+                       SmsCodeService smsCodeService, EmailCodeService emailCodeService,
+                       MerchantService merchantService) {
         this.redisTemplate = redisTemplate;
         this.userDao = userDao;
         this.smsCodeService = smsCodeService;
         this.emailCodeService = emailCodeService;
+        this.merchantService = merchantService;
     }
 
     /** 用户名密码登录，默认短会话。 */
@@ -136,6 +141,7 @@ public class AuthService {
         if (id == null) {
             return null;
         }
+        provisionMerchantForNewUser(id, normalizedNickname);
         Map<String, Object> result = new HashMap<String, Object>();
         result.put("username", normalizedUsername);
         result.put("role", registerDefaultRole);
@@ -215,6 +221,7 @@ public class AuthService {
         if (id == null) {
             return null;
         }
+        provisionMerchantForNewUser(id, normalizedNickname);
         Map<String, Object> result = new HashMap<String, Object>();
         result.put("username", normalizedEmail);
         result.put("role", registerDefaultRole);
@@ -258,7 +265,10 @@ public class AuthService {
         if (value == null) {
             return null;
         }
-        CurrentUserVO vo = parseSession(value);
+        CurrentUserVO vo = SessionCodec.decode(value);
+        if (vo == null) {
+            return null;
+        }
         Map<String, Object> user = userDao.findByUsername(vo.getUsername());
         if (user != null) {
             Object nickname = user.get("nickname");
@@ -285,10 +295,13 @@ public class AuthService {
             if (keys == null) {
                 return;
             }
-            String prefix = username.trim() + SESSION_SEPARATOR;
+            // 会话值不再是 username 开头（v2 格式以 userId 开头），故不能再按前缀匹配，
+            // 统一解码后比 username。SessionCodec.decode 同时覆盖新旧两种格式。
+            String target = username.trim();
             for (String key : keys) {
                 String value = redisTemplate.opsForValue().get(key);
-                if (value != null && value.startsWith(prefix)) {
+                CurrentUserVO vo = value == null ? null : SessionCodec.decode(value);
+                if (vo != null && target.equals(vo.getUsername())) {
                     redisTemplate.delete(key);
                 }
             }
@@ -299,29 +312,59 @@ public class AuthService {
     private LoginResultVO createSession(Map<String, Object> user, long ttlSeconds) {
         String username = String.valueOf(user.get("username"));
         String role = String.valueOf(user.get("role"));
+        Long userId = asLong(user.get("id"));
+        // 登录时解析一次商家归属并写进会话，仅供前端展示；鉴权时仍以数据库为准（见 TenantScopeResolver）
+        Long merchantId = merchantService.findMerchantIdByUserId(userId);
         String token = UUID.randomUUID().toString().replace("-", "");
         redisTemplate.opsForValue().set(
                 TOKEN_PREFIX + token,
-                username + SESSION_SEPARATOR + role,
+                SessionCodec.encode(userId, merchantId, username, role),
                 Duration.ofSeconds(ttlSeconds));
         LoginResultVO vo = new LoginResultVO();
         vo.setToken(token);
         vo.setUsername(username);
         vo.setRole(role);
+        vo.setUserId(userId);
+        vo.setMerchantId(merchantId);
         Object nickname = user.get("nickname");
         vo.setNickname(nickname == null ? username : String.valueOf(nickname));
         Object avatar = user.get("avatar");
         vo.setAvatar(avatar == null ? null : String.valueOf(avatar));
-        log.info("[Auth] 用户 {} 登录成功，角色 {}，ttl {}s", username, role, ttlSeconds);
+        log.info("[Auth] 用户 {} 登录成功，角色 {}，商家 {}，ttl {}s", username, role, merchantId, ttlSeconds);
         return vo;
     }
 
-    private CurrentUserVO parseSession(String value) {
-        int idx = value.lastIndexOf(SESSION_SEPARATOR);
-        CurrentUserVO vo = new CurrentUserVO();
-        vo.setUsername(idx > 0 ? value.substring(0, idx) : value);
-        vo.setRole(idx > 0 ? value.substring(idx + 1) : "");
-        return vo;
+    /**
+     * 自助注册的默认角色是 MERCHANT，必须同时建好商家档案 —— 否则该账号
+     * 「是商家但查不到商家」，在租户隔离 fail-closed 之后会直接 403、看不到任何数据。
+     * <p>
+     * 建档案失败<b>不应让注册整体失败</b>：用户仍可登录，由前端空态提示联系管理员。
+     */
+    private void provisionMerchantForNewUser(Long userId, String nickname) {
+        if (userId == null || !"MERCHANT".equals(registerDefaultRole)) {
+            return;
+        }
+        try {
+            merchantService.createForNewUser(userId, nickname);
+        } catch (Exception e) {
+            log.warn("[Auth] 注册后补建商家档案失败 userId={}", userId, e);
+        }
+    }
+
+    private static Long asLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            long v = ((Number) value).longValue();
+            return v == 0L ? null : v;
+        }
+        try {
+            long v = Long.parseLong(String.valueOf(value));
+            return v == 0L ? null : v;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private boolean isValidPassword(String password) {

@@ -3,6 +3,7 @@ package com.aroura.sentinel.web.controller.sentinel.tms;
 import com.aroura.sentinel.common.vo.BasicResultVO;
 import com.aroura.sentinel.web.annotation.RequireRole;
 import com.aroura.sentinel.web.service.sentinel.tms.SearchService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,15 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class SearchController {
 
     private final SearchService searchService;
+    private final TenantScopeResolver tenantScope;
 
-    public SearchController(SearchService searchService) {
+    public SearchController(SearchService searchService, TenantScopeResolver tenantScope) {
         this.searchService = searchService;
+        this.tenantScope = tenantScope;
     }
 
     @GetMapping("/search")
     @ApiOperation("全局搜索（订单/运单/商家）")
     @RequireRole({"ADMIN", "OPERATOR", "FINANCE", "MERCHANT", "CUSTOMER_SERVICE"})
     public BasicResultVO search(@RequestParam String keyword) {
-        return BasicResultVO.success(searchService.search(keyword));
+        return BasicResultVO.success(searchService.search(keyword, tenantScope.currentScope()));
     }
 }

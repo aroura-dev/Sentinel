@@ -3,6 +3,7 @@ package com.aroura.sentinel.web.controller.sentinel.tms;
 import com.aroura.sentinel.common.vo.BasicResultVO;
 import com.aroura.sentinel.web.annotation.RequireRole;
 import com.aroura.sentinel.web.service.sentinel.tms.AfterSaleService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +27,11 @@ import java.util.Map;
 public class AfterSaleController {
 
     private final AfterSaleService afterSaleService;
+    private final TenantScopeResolver tenantScope;
 
-    public AfterSaleController(AfterSaleService afterSaleService) {
+    public AfterSaleController(AfterSaleService afterSaleService, TenantScopeResolver tenantScope) {
         this.afterSaleService = afterSaleService;
+        this.tenantScope = tenantScope;
     }
 
     @GetMapping("/list")
@@ -38,7 +41,8 @@ public class AfterSaleController {
                               @RequestParam(required = false) String status,
                               @RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "10") int perPage) {
-        return BasicResultVO.success(afterSaleService.list(orderNo, status, page, perPage));
+        return BasicResultVO.success(afterSaleService.list(orderNo, status,
+                tenantScope.currentScope(), page, perPage));
     }
 
     @GetMapping("/{id}")

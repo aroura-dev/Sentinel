@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
@@ -13,6 +14,7 @@ import com.aroura.sentinel.logistics.model.tms.FreightQuote;
 import com.aroura.sentinel.logistics.model.tms.Waybill;
 import com.aroura.sentinel.web.exception.CommonException;
 import com.aroura.sentinel.web.service.SentinelNotifyService;
+import com.aroura.sentinel.web.support.TenantScopeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -44,11 +46,13 @@ public class WaybillService {
     private final SentinelNotifyService notifyService;
     private final SlaService slaService;
     private final AuditLogService auditLogService;
+    private final TenantScopeResolver tenantScope;
 
     public WaybillService(WaybillDao waybillDao, LogisticsDao logisticsDao, CarrierChannelDao channelDao,
                           CarrierDao carrierDao, FreightCalculator freightCalculator,
                           SentinelNotifyService notifyService, SlaService slaService,
-                          AuditLogService auditLogService) {
+                          AuditLogService auditLogService, TenantScopeResolver tenantScope) {
+        this.tenantScope = tenantScope;
         this.waybillDao = waybillDao;
         this.logisticsDao = logisticsDao;
         this.channelDao = channelDao;
@@ -64,6 +68,7 @@ public class WaybillService {
      * 整单出库：幂等（已有运单直接返回）；分批出库（partial=true）：允许同一订单多次出库，
      * 每次可指定本次出库商品子集 items（不传则出全量），运单记录本次出库商品明细，订单商品保持全量。
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> generate(String orderNo, String items, boolean partial) {
         Map<String, Object> order = logisticsDao.findOrderByNo(orderNo);
         if (order == null) {
@@ -165,6 +170,7 @@ public class WaybillService {
      * 合并运单：同商家、同目的地、未出库、已审核订单合并生成一张运单。
      * 运费 = 各订单运费快照合计；商品明细 = 各单合并；历史记录写入审计（MERGE），无需新表。
      */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> merge(List<String> orderNos) {
         if (orderNos == null || orderNos.size() < 2) {
             throw new CommonException("合并运单至少需要 2 个订单");
@@ -317,8 +323,9 @@ public class WaybillService {
         waybillDao.markDeliveredByOrderNo(orderNo, new Date());
     }
 
-    public Map<String, Object> list(String orderNo, String waybillNo, String trackingNo, Long channelId, Long carrierId, int page, int perPage) {
-        return waybillDao.findPage(orderNo, waybillNo, trackingNo, channelId, carrierId, page, perPage);
+    public Map<String, Object> list(String orderNo, String waybillNo, String trackingNo, Long channelId,
+                                    Long carrierId, Long merchantScope, int page, int perPage) {
+        return waybillDao.findPage(orderNo, waybillNo, trackingNo, channelId, carrierId, merchantScope, page, perPage);
     }
 
     public Map<String, Object> detail(String waybillNo) {
@@ -326,7 +333,16 @@ public class WaybillService {
         if (wb == null) {
             throw new CommonException("运单不存在: " + waybillNo);
         }
+        // 归属断言放在这里，list/detail/tracks 三个调用方一并覆盖
+        tenantScope.assertAccessible(merchantIdOf(wb), "运单");
         return wb;
+    }
+
+    private static Long merchantIdOf(Map<String, Object> row) {
+        if (row == null || row.get("merchant_id") == null) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(row.get("merchant_id")));
     }
 
     /* ---------- 聚合工具 ---------- */

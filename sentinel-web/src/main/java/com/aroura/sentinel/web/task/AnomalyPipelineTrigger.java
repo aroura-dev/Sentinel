@@ -18,7 +18,7 @@ import java.util.Map;
  * <p>
  * 修复：PRD 4.3 要求"定时任务扫描 → 检测到异常 → 触发异常处理责任链"。
  * 本任务周期扫描处于异常节点且尚未建工单的订单，自动送入 AnomalyWorkflowService。
- * （物流层 AnomalyScanTask 负责把清关滞留>48h 订单标记为 CUSTOMS_DELAY，本任务消费其结果）
+ * （物流层 AnomalyScanTask 负责把分拨滞留>48h 订单标记为 CUSTOMS_DELAY，本任务消费其结果）
  *
  * @author sentinel
  */

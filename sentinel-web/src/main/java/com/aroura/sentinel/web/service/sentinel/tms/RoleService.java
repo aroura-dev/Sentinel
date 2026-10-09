@@ -1,5 +1,6 @@
 package com.aroura.sentinel.web.service.sentinel.tms;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.aroura.sentinel.web.dao.RoleDao;
 import com.aroura.sentinel.web.exception.CommonException;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class RoleService {
         return roleDao.findAll();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> create(String code, String name, String description) {
         if (code == null || code.trim().isEmpty() || name == null || name.trim().isEmpty()) {
             throw new CommonException("角色编码和名称不能为空");
@@ -44,6 +46,7 @@ public class RoleService {
         return roleDao.findById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> update(Long id, String name, String description) {
         Map<String, Object> role = roleDao.findById(id);
         if (role == null) {
@@ -54,6 +57,7 @@ public class RoleService {
         return roleDao.findById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> toggle(Long id) {
         Map<String, Object> role = roleDao.findById(id);
         if (role == null) {
@@ -78,6 +82,7 @@ public class RoleService {
         return result;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> saveMenus(String roleCode, List<String> paths) {
         if (roleDao.findByCode(roleCode) == null) {
             throw new CommonException("角色不存在: " + roleCode);

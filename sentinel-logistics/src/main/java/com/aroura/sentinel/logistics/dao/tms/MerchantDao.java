@@ -62,8 +62,20 @@ public class MerchantDao {
     }
 
     public Map<String, Object> findPage(String keyword, int page, int perPage) {
+        return findPage(keyword, null, page, perPage);
+    }
+
+    /**
+     * 商家分页。{@code onlyMerchantId} 非空时只返回该商家自己那一行（MERCHANT 角色用），
+     * 避免商家枚举到全部商家档案（含联系方式）。
+     */
+    public Map<String, Object> findPage(String keyword, Long onlyMerchantId, int page, int perPage) {
         StringBuilder where = new StringBuilder(" WHERE is_deleted = 0");
         List<Object> args = new java.util.ArrayList<>();
+        if (onlyMerchantId != null) {
+            where.append(" AND id = ?");
+            args.add(onlyMerchantId);
+        }
         if (keyword != null && !keyword.trim().isEmpty()) {
             where.append(" AND (merchant_code LIKE ? OR merchant_name LIKE ?)");
             args.add("%" + keyword.trim() + "%");
@@ -81,6 +93,25 @@ public class MerchantDao {
     }
 
     public List<Map<String, Object>> listAll() {
-        return jdbcTemplate.queryForList("SELECT id, merchant_code, merchant_name FROM merchant WHERE is_deleted = 0 AND status = 1 ORDER BY id ASC");
+        return listAll(null);
+    }
+
+    /**
+     * 商家名录。{@code onlyMerchantId} 非空时只返回该商家自己那一行（供 MERCHANT 角色使用）。
+     * <p>
+     * 注意 MERCHANT 分支**不套 {@code status = 1} 过滤** —— 该方法被前端当作"商家名字字典"用于
+     * 下单页/商品页的必选下拉，若把已停用商家过滤掉，该商家自己登录后整页不可用。
+     *
+     * @param onlyMerchantId 非空则限定为单个商家；null 表示平台视角，返回全部启用商家
+     */
+    public List<Map<String, Object>> listAll(Long onlyMerchantId) {
+        if (onlyMerchantId != null) {
+            return jdbcTemplate.queryForList(
+                    "SELECT id, merchant_code, merchant_name, user_id FROM merchant "
+                            + "WHERE is_deleted = 0 AND id = ? ORDER BY id ASC", onlyMerchantId);
+        }
+        return jdbcTemplate.queryForList(
+                "SELECT id, merchant_code, merchant_name, user_id FROM merchant "
+                        + "WHERE is_deleted = 0 AND status = 1 ORDER BY id ASC");
     }
 }

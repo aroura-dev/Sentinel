@@ -107,16 +107,9 @@ public class SentinelNotifyService {
         SentinelContext ctx = SentinelContext.of(orderNo, node, language, role);
         String recordTraceId = traceId == null || traceId.trim().isEmpty() ? ctx.toBizId() : traceId;
         String content = contentGenAgent.generate(node, language, productInfo, orderNo, recordTraceId);
-        notificationDao.insert(orderNo, node, role, channel, content, language, "PENDING", recordTraceId);
-
-        Map<String, Object> latest = notificationDao.queryPage(orderNo, channel, null, 1, 1);
-        Object rows = latest.get("rows");
-        Map<String, Object> row = null;
-        if (rows instanceof java.util.List && !((java.util.List<?>) rows).isEmpty()) {
-            row = (Map<String, Object>) ((java.util.List<?>) rows).get(0);
-        }
-        dispatch(row, buyerId, orderNo, ctx);
-        return row;
+        Long recordId = notificationDao.insert(orderNo, node, role, channel, content, language, "PENDING", recordTraceId);
+        dispatch(recordId, buyerId, orderNo, ctx);
+        return recordId == null ? null : notificationDao.queryById(recordId);
     }
 
     private String buildProductInfo(Map<String, Object> order) {
@@ -135,12 +128,21 @@ public class SentinelNotifyService {
      * bizId 编码为 SentinelContext（orderNo|node|language|role），使 Handler 层 Agent
      * 能还原真实上下文；发送为异步执行（eventBus 线程池），本方法仅回写提交状态。
      */
-    private void dispatch(Map<String, Object> row, String buyerId, String orderNo, SentinelContext ctx) {
-        if (!dispatchEnabled || dispatchTemplateId <= 0 || row == null) {
+    private void dispatch(Long id, String buyerId, String orderNo, SentinelContext ctx) {
+        if (id == null) {
             return;
         }
-        Long id = row.get("id") == null ? null : ((Number) row.get("id")).longValue();
-        if (id == null || buyerId == null || buyerId.isEmpty() || "null".equals(buyerId)) {
+        // 分发未启用 / 未配置模板：这条记录永远不会被投递。显式标记 SKIPPED，
+        // 否则它与"正在投递中"的 PENDING 无从区分 —— 实测运行时产生的通知记录
+        // 全部滞留 PENDING，报表成功率完全由种子数据撑着。
+        if (!dispatchEnabled || dispatchTemplateId <= 0) {
+            notificationDao.updateStatus(id, "SKIPPED");
+            log.info("[NotifyDispatch] 分发未启用或未配置模板，通知记录标记 SKIPPED id={} orderNo={}", id, orderNo);
+            return;
+        }
+        if (buyerId == null || buyerId.isEmpty() || "null".equals(buyerId)) {
+            notificationDao.updateStatus(id, "SKIPPED");
+            log.info("[NotifyDispatch] 缺少买家标识，通知记录标记 SKIPPED id={} orderNo={}", id, orderNo);
             return;
         }
         try {

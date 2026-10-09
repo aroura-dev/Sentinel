@@ -181,12 +181,14 @@ public class AuthController {
     }
 
     private Map<String, Object> tokenData(LoginResultVO result) {
-        Map<String, Object> data = new HashMap<String, Object>(5);
+        Map<String, Object> data = new HashMap<String, Object>(7);
         data.put("token", result.getToken());
         data.put("username", result.getUsername());
         data.put("role", result.getRole());
         data.put("nickname", result.getNickname());
         data.put("avatar", result.getAvatar());
+        data.put("userId", result.getUserId());
+        data.put("merchantId", result.getMerchantId());
         return data;
     }
 }

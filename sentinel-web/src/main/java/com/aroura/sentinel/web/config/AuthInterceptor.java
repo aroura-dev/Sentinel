@@ -22,7 +22,6 @@ import javax.servlet.http.HttpServletResponse;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private static final String TOKEN_PREFIX = "sentinel:token:";
-    private static final String SESSION_SEPARATOR = ":";
     public static final String CURRENT_USER_ATTR = "currentUser";
 
     @Autowired
@@ -43,8 +42,10 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         if (token != null) {
             String value = redisTemplate.opsForValue().get(TOKEN_PREFIX + token);
-            if (value != null) {
-                request.setAttribute(CURRENT_USER_ATTR, parseSession(value));
+            // decode 失败（含 v2 结构损坏）一律按未登录处理，不回退旧解析
+            CurrentUserVO user = SessionCodec.decode(value);
+            if (user != null) {
+                request.setAttribute(CURRENT_USER_ATTR, user);
                 return true;
             }
         }
@@ -52,13 +53,5 @@ public class AuthInterceptor implements HandlerInterceptor {
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write("{\"status\":401,\"msg\":\"未登录或登录已过期\",\"data\":null}");
         return false;
-    }
-
-    private static CurrentUserVO parseSession(String value) {
-        int idx = value.lastIndexOf(SESSION_SEPARATOR);
-        CurrentUserVO vo = new CurrentUserVO();
-        vo.setUsername(idx > 0 ? value.substring(0, idx) : value);
-        vo.setRole(idx > 0 ? value.substring(idx + 1) : "");
-        return vo;
     }
 }
