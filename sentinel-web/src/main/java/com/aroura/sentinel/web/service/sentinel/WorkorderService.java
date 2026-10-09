@@ -120,6 +120,11 @@ public class WorkorderService {
             return false;
         }
         String current = String.valueOf(row.get("status"));
+        Object versionValue = row.get("version");
+        if (!(versionValue instanceof Number)) {
+            throw new IllegalStateException("工单缺少乐观锁版本，无法安全更新");
+        }
+        long expectedVersion = ((Number) versionValue).longValue();
         String target = status == null ? "" : status.trim().toUpperCase();
         if (current.equalsIgnoreCase(target)) {
             // 幂等：目标状态与当前一致，直接视为成功
@@ -134,7 +139,7 @@ public class WorkorderService {
         WorkOrderStateTransition.requireValid(from, to);
         // P0-3 权限矩阵：角色与目标状态必须匹配（无请求上下文视为系统流转）
         WorkOrderStatePermission.requireAllowed(auditLogService.currentRole(), to);
-        int updated = workorderDao.updateStatusWithVersion(id, current, to.getCode());
+        int updated = workorderDao.updateStatusWithVersion(id, current, expectedVersion, to.getCode());
         if (updated == 0) {
             throw new IllegalStateException("工单状态已被并发修改，请刷新后重试");
         }

@@ -293,12 +293,12 @@ public class WorkorderDao {
     }
 
     /**
-     * 带乐观锁的状态更新：仅当当前状态匹配时更新成功；返回影响行数
+     * 带乐观锁的状态更新：仅当当前状态和版本都匹配时更新成功；返回影响行数
      */
-    public int updateStatusWithVersion(Long id, String fromStatus, String toStatus) {
+    public int updateStatusWithVersion(Long id, String fromStatus, long expectedVersion, String toStatus) {
         return jdbcTemplate.update(
                 "UPDATE workorder SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP "
-                        + "WHERE id = ? AND status = ? AND is_deleted = 0",
-                toStatus, id, fromStatus);
+                        + "WHERE id = ? AND status = ? AND version = ? AND is_deleted = 0",
+                toStatus, id, fromStatus, expectedVersion);
     }
 }
