@@ -133,9 +133,12 @@ WHERE status_code IN ('EXP-0040','EXP-0050','EXP-0060','CUS-1102','CUS-1103','CU
 
 -- 9. 工单 文案国内化
 UPDATE workorder SET
-  description = REPLACE(description, '清关', '中转'),
-  resolution = REPLACE(resolution, '清关', '中转')
-WHERE description LIKE '%清关%' OR resolution LIKE '%清关%';
+  description = REPLACE(REPLACE(REPLACE(description, '清关', '中转'), '国际运输', '干线运输'), '海关', '中转'),
+  agent_diagnosis = REPLACE(REPLACE(REPLACE(agent_diagnosis, '清关', '中转'), '国际运输', '干线运输'), '海关', '中转'),
+  resolution = REPLACE(REPLACE(REPLACE(resolution, '清关', '中转'), '国际运输', '干线运输'), '海关', '中转')
+WHERE description REGEXP '清关|国际运输|海关'
+   OR agent_diagnosis REGEXP '清关|国际运输|海关'
+   OR resolution REGEXP '清关|国际运输|海关';
 
 -- 10. 通知记录 文案国内化（按节点全量转中文；任何外语内容一律转 zh，幂等）
 UPDATE notification_record SET

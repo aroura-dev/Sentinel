@@ -55,16 +55,16 @@ INSERT INTO `anomaly_knowledge` (`status_code`, `type`, `description`, `avg_dura
 ('EXP-0010', 'normal',      '下单，包裹创建', 0, '无需处理'),
 ('EXP-0020', 'normal',      '仓库出库', 0, '无需处理'),
 ('EXP-0030', 'normal',      '国内揽收成功', 0, '无需处理'),
-('EXP-0040', 'normal',      '出口报关完成', 0, '无需处理'),
-('EXP-0050', 'normal',      '国际运输途中', 0, '无需处理'),
-('EXP-0060', 'normal',      '目的国清关中', 0, '无需处理'),
+('EXP-0040', 'normal',      '中转分拨完成', 0, '无需处理'),
+('EXP-0050', 'normal',      '干线运输途中', 0, '无需处理'),
+('EXP-0060', 'normal',      '到达分拨中', 0, '无需处理'),
 ('EXP-0070', 'normal',      '本地派送中', 0, '无需处理'),
 ('EXP-0080', 'normal',      '已签收', 0, '无需处理'),
-('CUS-1102', 'customs_delay', '海关抽检，包裹在目的国海关停留', 48, '1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知'),
-('CUS-1103', 'customs_delay', '海关查验（X光/开箱），清关放行延迟', 60, '1.提供发票/认证材料 2.通知买家预计延迟 3.持续跟进'),
-('CUS-1104', 'customs_delay', '目的国清关政策调整（如认证 EAC），清关周期拉长', 96, '1.确认合规资质 2.评估补发 3.同步买家预期'),
-('CUS-1105', 'customs_delay', '清关文件缺失，需补充材料', 72, '1.联系商家补充材料 2.通知买家 3.跟进清关进度'),
-('EXP-0051', 'lost',         '国际运输途中丢件', 0, '1.联系物流商核实 2.创建丢件工单 3.建议退款'),
+('CUS-1102', 'customs_delay', '分拨中心抽检，包裹在中转分拨停留', 48, '1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知'),
+('CUS-1103', 'customs_delay', '分拨中心抽检（X光/开箱），中转放行延迟', 60, '1.提供商品信息 2.通知买家预计延迟 3.持续跟进'),
+('CUS-1104', 'customs_delay', '分拨区域临时管控，中转周期拉长', 96, '1.确认分拨状态 2.评估补发 3.同步买家预期'),
+('CUS-1105', 'customs_delay', '分拨信息缺失，需补充材料', 72, '1.联系商家补充材料 2.通知买家 3.跟进分拨进度'),
+('EXP-0051', 'lost',         '干线运输途中丢件', 0, '1.联系物流商核实 2.创建丢件工单 3.建议退款'),
 ('EXP-0052', 'lost',         '运输途中包裹破损/部分丢失', 24, '1.核实破损情况 2.协商部分退款或补发 3.通知买家'),
 ('EXP-0062', 'returned',     '包裹退回发件地', 0, '1.核实退回原因 2.通知买家 3.跟进退款'),
 ('EXP-0063', 'returned',     '收件人拒收，包裹退回', 24, '1.联系买家确认原因 2.确认是否重发 3.跟进退回物流'),
@@ -74,7 +74,7 @@ INSERT INTO `anomaly_knowledge` (`status_code`, `type`, `description`, `avg_dura
 ON DUPLICATE KEY UPDATE `description` = VALUES(`description`), `suggestion` = VALUES(`suggestion`);
 
 -- -----------------------------------------------------------
--- 5. 物流订单（32 单，覆盖各状态；含清关滞留>48h、终态、异常）
+-- 5. 物流订单（32 单，覆盖各状态；含分拨滞留>48h、终态、异常）
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `logistics_order` (`order_no`, `buyer_id`, `buyer_phone`, `buyer_language`, `merchant_name`, `destination_country`, `current_node`, `created_at`, `updated_at`) VALUES
 ('OMT-SEED-0001', 'buyer_001', '+79031234567', 'ru', '深圳蓝鲸科技', 'RU', 'DELIVERED',       DATE_SUB(NOW(), INTERVAL 8 DAY),   DATE_SUB(NOW(), INTERVAL 12 HOUR)),
@@ -151,7 +151,7 @@ INSERT IGNORE INTO `notification_record` (`id`, `order_no`, `node`, `role`, `cha
 (300006, 'OMT-SEED-0004', 'LAST_MILE',      'buyer', 'push', 'Здравствуйте! Ваш заказ передан в местную доставку.',      'ru', 'SENT', 'SEED-0004'),
 (300007, 'OMT-SEED-0005', 'IMPORT_CUSTOMS', 'buyer', 'sms',  'Здравствуйте! Ваш заказ проходит таможенное оформление.', 'ru', 'PENDING', 'SEED-0005'),
 (300008, 'OMT-SEED-0007', 'CUSTOMS_DELAY',  'buyer', 'sms',  'Здравствуйте! Ваш заказ задержан на таможне.',            'ru', 'SENT', 'SEED-0007'),
-(300009, 'OMT-SEED-0007', 'CUSTOMS_DELAY',  'merchant', 'feishu', '订单 OMT-SEED-0007 清关延误，请关注。',           'zh', 'SENT', 'SEED-0007'),
+(300009, 'OMT-SEED-0007', 'CUSTOMS_DELAY',  'merchant', 'feishu', '订单 OMT-SEED-0007 中转延误，请关注。',           'zh', 'SENT', 'SEED-0007'),
 (300010, 'OMT-SEED-0010', 'DELIVERY_FAILED','buyer', 'push', 'Здравствуйте! Доставка не удалась, будет повторная.',      'ru', 'SENT', 'SEED-0010'),
 (300011, 'OMT-SEED-0015', 'LOST',           'buyer', 'sms',  'Здравствуйте! Ваш заказ утерян, мы решаем вопрос.',       'ru', 'SENT', 'SEED-0015'),
 (300012, 'OMT-SEED-0016', 'RETURNED',       'merchant', 'feishu', '订单 OMT-SEED-0016 已退回，请跟进退款。',       'zh', 'SENT', 'SEED-0016'),
@@ -164,14 +164,14 @@ INSERT IGNORE INTO `notification_record` (`id`, `order_no`, `node`, `role`, `cha
 -- 8. 异常工单（异常订单对应）
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `workorder` (`id`, `order_no`, `type`, `level`, `description`, `agent_diagnosis`, `sop`, `status`) VALUES
-(400001, 'OMT-SEED-0007', 'customs_delay',    'P1', '订单在物流环节发生清关延误异常（节点 CUSTOMS_DELAY）',
-        '{"type":"customs_delay","level":"P1","sop":"1.联系物流商核实 2.通知买家预计延误时间","reason":"海关抽检，包裹在目的国海关停留"}',
+(400001, 'OMT-SEED-0007', 'customs_delay',    'P1', '订单在物流环节发生中转延误异常（节点 CUSTOMS_DELAY）',
+        '{"type":"customs_delay","level":"P1","sop":"1.联系物流商核实 2.通知买家预计延误时间","reason":"分拨中心抽检，包裹在中转分拨停留"}',
         '1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知', 'OPEN'),
 (400002, 'OMT-SEED-0010', 'delivery_failed',  'P2', '订单在物流环节发生派送失败异常（节点 DELIVERY_FAILED）',
         '{"type":"delivery_failed","level":"P2","sop":"1.联系买家预约派送时间 2.重新安排派送","reason":"买家不在家，派送失败"}',
         '1.联系买家预约派送时间 2.重新安排派送', 'PROCESSING'),
 (400003, 'OMT-SEED-0015', 'lost',             'P0', '订单在物流环节发生丢件异常（节点 LOST）',
-        '{"type":"lost","level":"P0","sop":"1.联系物流商核实 2.创建丢件工单 3.建议退款","reason":"国际运输途中丢件"}',
+        '{"type":"lost","level":"P0","sop":"1.联系物流商核实 2.创建丢件工单 3.建议退款","reason":"干线运输途中丢件"}',
         '1.联系物流商核实 2.创建丢件工单 3.建议退款', 'OPEN'),
 (400004, 'OMT-SEED-0016', 'returned',         'P1', '订单在物流环节发生退回异常（节点 RETURNED）',
         '{"type":"returned","level":"P1","sop":"1.核实退回原因 2.通知买家 3.跟进退款","reason":"包裹退回发件地"}',
@@ -184,11 +184,11 @@ INSERT IGNORE INTO `agent_call_log` (`id`, `agent_name`, `input`, `output`, `too
 (500001, 'ContentGenAgent', '{"node":"IMPORT_CUSTOMS","language":"ru"}', '{"content":"Здравствуйте! Ваш заказ проходит таможенное оформление."}', 'queryTemplate', 320, 1200, 'success', 'SEED-0001', DATE_SUB(NOW(), INTERVAL 7 DAY)),
 (500002, 'ContentGenAgent', '{"node":"DELIVERED","language":"ru"}', '{"content":"Поздравляем! Ваш заказ доставлен."}', 'queryTemplate', 280, 900, 'success', 'SEED-0001', DATE_SUB(NOW(), INTERVAL 7 DAY)),
 (500003, 'ContentGenAgent', '{"node":"IMPORT_CUSTOMS","language":"en"}', '{"content":"Hello! Your package is undergoing customs clearance."}', 'queryTemplate', 300, 1100, 'success', 'SEED-0019', DATE_SUB(NOW(), INTERVAL 6 DAY)),
-(500004, 'AnomalyDiagnoseAgent', '{"type":"customs_delay","statusCode":"CUS-1102"}', '{"reason":"海关抽检，包裹在目的国海关停留","priority":"P1"}', 'querySimilarAnomaly,decodeStatusCode', 680, 3800, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
-(500005, 'WorkorderAgent', '{"anomalyDesc":"订单在物流环节发生清关延误异常"}', '{"type":"customs_delay","level":"P1","sop":"1.联系物流商核实..."}', 'classifyAnomaly,querySOP', 720, 4100, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
+(500004, 'AnomalyDiagnoseAgent', '{"type":"customs_delay","statusCode":"CUS-1102"}', '{"reason":"分拨中心抽检，包裹在中转分拨停留","priority":"P1"}', 'querySimilarAnomaly,decodeStatusCode', 680, 3800, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
+(500005, 'WorkorderAgent', '{"anomalyDesc":"订单在物流环节发生中转延误异常"}', '{"type":"customs_delay","level":"P1","sop":"1.联系物流商核实..."}', 'classifyAnomaly,querySOP', 720, 4100, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
 (500006, 'ContentGenAgent', '{"node":"CUSTOMS_DELAY","language":"ru"}', '{"content":"Здравствуйте! Ваш заказ задержан на таможне."}', 'queryTemplate', 310, 1000, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
 (500007, 'ChannelRouteAgent', '{"priority":"P1","buyerId":"buyer_007"}', '{"primary":"sms","backup":"push","reason":"SMS 配额充足"}', 'queryChannelHealth,queryUserPreference', 540, 2900, 'success', 'SEED-0007', DATE_SUB(NOW(), INTERVAL 5 DAY)),
-(500008, 'AnomalyDiagnoseAgent', '{"type":"lost","statusCode":"EXP-0051"}', '{"reason":"国际运输途中丢件","priority":"P0"}', 'querySimilarAnomaly', 700, 3600, 'success', 'SEED-0015', DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(500008, 'AnomalyDiagnoseAgent', '{"type":"lost","statusCode":"EXP-0051"}', '{"reason":"干线运输途中丢件","priority":"P0"}', 'querySimilarAnomaly', 700, 3600, 'success', 'SEED-0015', DATE_SUB(NOW(), INTERVAL 3 DAY)),
 (500009, 'CsRouteAgent', '{"message":"我的包裹到哪了？","buyerId":"buyer_005"}', '{"intent":"query_track","route":"auto","reply":"请提供您的订单号..."}', 'queryTrack', 430, 2400, 'success', 'SEED-CS-1', DATE_SUB(NOW(), INTERVAL 2 DAY)),
 (500010, 'ContentGenAgent', '{"node":"IMPORT_CUSTOMS","language":"es"}', '{"content":"Hola! Su paquete está en aduanas."}', 'queryTemplate', 290, 950, 'success', 'SEED-0022', DATE_SUB(NOW(), INTERVAL 2 DAY)),
 (500011, 'UnsubscribePredictAgent', '{"buyerId":"buyer_010","node":"DELIVERY_FAILED"}', '{"probability":0.31,"advice":"reduce"}', 'queryUserNotifyHistory', 510, 2700, 'success', 'SEED-0010', DATE_SUB(NOW(), INTERVAL 1 DAY)),

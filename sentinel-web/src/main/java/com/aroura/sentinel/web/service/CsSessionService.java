@@ -28,7 +28,7 @@ public class CsSessionService {
         long now = System.currentTimeMillis();
         addDemo("buyer_1001", "好的，请尽快帮我处理。", "query_track", "auto",
                 "已记录，我们会持续跟进 OMT-SEED-0007 的中转分拨进度。", now - 18L * 60 * 1000);
-        addDemo("buyer_1001", "我的包裹清关延误三天了，预计什么时候能发出？", "query_track", "auto",
+        addDemo("buyer_1001", "我的包裹在中转分拨停留三天了，预计什么时候能继续运输？", "query_track", "auto",
                 "订单 OMT-SEED-0007 正在中转分拨，预计 24 小时内更新轨迹。", now - 20L * 60 * 1000);
         addDemo("buyer_1002", "请尽快回复，我比较着急。", "complaint", "human",
                 "已提醒人工客服优先处理，请保持电话畅通。", now - 40L * 60 * 1000);

@@ -24,7 +24,7 @@ public final class LogisticsNodeTransition {
      * <p>
      * 规则：
      * - 非法转移自动拒绝（如签收后不可变更）
-     * - 异常分支可恢复（如清关延误解除 → 目的地清关）
+     * - 异常分支可恢复（如中转延误解除 → 到达分拨）
      */
     private static final Map<LogisticsNode, Set<LogisticsNode>> TRANSITIONS = new EnumMap<>(LogisticsNode.class);
 

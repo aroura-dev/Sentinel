@@ -114,7 +114,7 @@
             <div class="ak-tip">填写具体业务系统名称，便于在列表中直接识别。</div>
           </el-form-item>
           <el-form-item label="所属企业" required>
-            <el-input v-model="form.company" maxlength="120" placeholder="如：深圳市前海国际供应链有限公司" show-word-limit />
+            <el-input v-model="form.company" maxlength="120" placeholder="如：深圳市前海供应链有限公司" show-word-limit />
           </el-form-item>
           <el-form-item label="负责人">
             <el-input v-model="form.contactName" maxlength="40" placeholder="如：张三（系统对接人）" />

@@ -91,7 +91,7 @@ class RouteScriptTrackGeneratorTest {
             }
             assertTrue(generator.dwellMillis(node) >= 0, node + " 驻留时长不应为负");
         }
-        // 国际运输/目的地清关/清关延误为真实长驻留环节
+        // 干线运输/到达分拨/中转延误为真实长驻留环节
         assertTrue(generator.dwellMillis(LogisticsNode.IN_TRANSIT) > 0);
         assertTrue(generator.dwellMillis(LogisticsNode.IMPORT_CUSTOMS) > 0);
         assertTrue(generator.dwellMillis(LogisticsNode.CUSTOMS_DELAY) > 0);

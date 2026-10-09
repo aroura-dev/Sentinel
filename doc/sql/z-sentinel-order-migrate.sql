@@ -18,7 +18,7 @@ JOIN (
 ) t ON t.id = o.id
 SET o.merchant_id = MOD(t.rn, 4) + 1;
 
--- 2. 渠道/承运商/仓库分配（按目的国）：
+-- 2. 渠道/承运商/仓库分配（按目的区域）：
 --    RU/Russia → RU-RAIL-EXPR(1)/CARGOWAY(1)；US→US-AIR(3)/AIRGO(2)；BR→BR-AIR(4)/AIRGO(2)；DE→DE-AIR(5)/AIRGO(2)；其余默认 RU 铁路
 UPDATE logistics_order o
 SET o.channel_id = CASE UPPER(TRIM(o.destination_country))

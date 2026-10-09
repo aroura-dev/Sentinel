@@ -9,10 +9,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 物流节点枚举（状态机节点）
+ * 国内电商物流节点枚举（状态机节点）
  * <p>
  * 参考 sentinel 的 ChannelType 枚举设计风格。
  * 节点转移规则见 {@link LogisticsNodeTransition}。
+ * <p>
+ * 为兼容历史数据和外部轨迹映射，{@code EXPORT_CUSTOMS}、{@code IMPORT_CUSTOMS}
+ * 和 {@code CUSTOMS_DELAY} 三个英文标识继续保留，当前业务含义分别为
+ * 中转分拨、到达分拨和中转延误，不代表跨境物流场景。
  *
  * @author sentinel
  */
@@ -77,7 +81,7 @@ public enum LogisticsNode {
      */
     private final Integer code;
     /**
-     * 英文标识（物流商原始状态码映射用）
+     * 兼容标识（历史数据和物流商原始状态码映射用）
      */
     private final String codeEn;
     /**
