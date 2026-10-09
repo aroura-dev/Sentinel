@@ -1,12 +1,8 @@
 package com.aroura.sentinel.logistics.dao;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,34 +23,9 @@ public class WorkorderDao {
     }
 
     public void insert(String orderNo, String type, String level, String description, String agentDiagnosis, String sop, String status) {
-        insertAndReturnId(orderNo, type, level, description, agentDiagnosis, sop, status);
-    }
-
-    /**
-     * 插入工单并返回主键，供 Agent 编排链路回填 workOrderId。
-     */
-    public Long insertAndReturnId(String orderNo, String type, String level, String description,
-                                  String agentDiagnosis, String sop, String status) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO workorder (order_no, type, level, description, agent_diagnosis, sop, status) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, orderNo);
-            statement.setString(2, type);
-            statement.setString(3, level);
-            statement.setString(4, description);
-            statement.setString(5, agentDiagnosis);
-            statement.setString(6, sop);
-            statement.setString(7, status);
-            return statement;
-        }, keyHolder);
-        Number key = keyHolder.getKey();
-        if (key == null) {
-            throw new IllegalStateException("工单插入成功但未返回主键");
-        }
-        return key.longValue();
+        jdbcTemplate.update(
+                "INSERT INTO workorder (order_no, type, level, description, agent_diagnosis, sop, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                orderNo, type, level, description, agentDiagnosis, sop, status);
     }
 
     public Map<String, Object> queryPage(String status, String level, String orderNo, Long merchantId, int page, int perPage) {
@@ -91,22 +62,8 @@ public class WorkorderDao {
     }
 
     public Map<String, Object> queryById(Long id) {
-        return queryById(id, null);
-    }
-
-    /**
-     * 工单详情。{@code merchantId} 非空时限定为「本商家订单的工单」——
-     * workorder 表本身没有 merchant_id，须经 logistics_order 反查（与 {@link #queryPage} 同一谓词）。
-     */
-    public Map<String, Object> queryById(Long id, Long merchantId) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM workorder WHERE id = ? AND is_deleted = 0");
-        List<Object> args = new ArrayList<>();
-        args.add(id);
-        if (merchantId != null) {
-            sql.append(" AND order_no IN (SELECT order_no FROM logistics_order WHERE merchant_id = ? AND is_deleted = 0)");
-            args.add(merchantId);
-        }
-        List<Map<String, Object>> list = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        List<Map<String, Object>> list = jdbcTemplate.queryForList(
+                "SELECT * FROM workorder WHERE id = ? AND is_deleted = 0", id);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -130,29 +87,15 @@ public class WorkorderDao {
     }
 
     public Map<String, Object> stats() {
-        return stats(null);
-    }
-
-    /**
-     * 工单统计。{@code merchantId} 非空时按本商家订单过滤，口径与 {@link #queryPage} 保持一致。
-     */
-    public Map<String, Object> stats(Long merchantId) {
-        StringBuilder scope = new StringBuilder();
-        List<Object> args = new ArrayList<>();
-        if (merchantId != null) {
-            scope.append(" AND order_no IN (SELECT order_no FROM logistics_order WHERE merchant_id = ? AND is_deleted = 0)");
-            args.add(merchantId);
-        }
-        String base = " FROM workorder WHERE is_deleted = 0" + scope;
         Map<String, Object> result = new HashMap<>(8);
         result.put("openWorkorderCount", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*)" + base + " AND status = 'OPEN'", Integer.class, args.toArray()));
+                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN'", Integer.class));
         result.put("p0Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P0'", Integer.class, args.toArray()));
+                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P0'", Integer.class));
         result.put("p1Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P1'", Integer.class, args.toArray()));
+                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P1'", Integer.class));
         result.put("p2Count", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*)" + base + " AND status = 'OPEN' AND level = 'P2'", Integer.class, args.toArray()));
+                "SELECT COUNT(*) FROM workorder WHERE is_deleted = 0 AND status = 'OPEN' AND level = 'P2'", Integer.class));
         return result;
     }
 
@@ -160,16 +103,6 @@ public class WorkorderDao {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM workorder WHERE order_no = ? AND is_deleted = 0", Integer.class, orderNo);
         return count != null && count > 0;
-    }
-
-    /**
-     * 查询订单最新工单 ID，用于编排链路幂等复用。
-     */
-    public Long findLatestIdByOrderNo(String orderNo) {
-        List<Map<String, Object>> list = jdbcTemplate.queryForList(
-                "SELECT id FROM workorder WHERE order_no = ? AND is_deleted = 0 ORDER BY id DESC LIMIT 1",
-                orderNo);
-        return list.isEmpty() ? null : ((Number) list.get(0).get("id")).longValue();
     }
 
     // ===================== 理赔流程（复用 workorder 作为索赔载体） =====================
@@ -281,24 +214,5 @@ public class WorkorderDao {
                 "UPDATE workorder SET claim_status='REJECTED', claim_reject_reason=? "
                         + "WHERE id=? AND is_deleted=0",
                 reason, id);
-    }
-
-    /**
-     * 查询工单状态与乐观锁版本（状态机流转用）
-     */
-    public Map<String, Object> queryStateById(Long id) {
-        List<Map<String, Object>> list = jdbcTemplate.queryForList(
-                "SELECT id, order_no, status, version FROM workorder WHERE id = ? AND is_deleted = 0", id);
-        return list.isEmpty() ? null : list.get(0);
-    }
-
-    /**
-     * 带乐观锁的状态更新：仅当当前状态和版本都匹配时更新成功；返回影响行数
-     */
-    public int updateStatusWithVersion(Long id, String fromStatus, long expectedVersion, String toStatus) {
-        return jdbcTemplate.update(
-                "UPDATE workorder SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP "
-                        + "WHERE id = ? AND status = ? AND version = ? AND is_deleted = 0",
-                toStatus, id, fromStatus, expectedVersion);
     }
 }

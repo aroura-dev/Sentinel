@@ -6,11 +6,13 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.google.common.base.Throwables;
 import com.aroura.sentinel.common.constant.CommonConstant;
+import com.aroura.sentinel.common.domain.NotificationReceipt;
 import com.aroura.sentinel.common.domain.RecallTaskInfo;
 import com.aroura.sentinel.common.domain.TaskInfo;
 import com.aroura.sentinel.common.dto.account.sms.SmsAccount;
 import com.aroura.sentinel.common.dto.model.SmsContentModel;
 import com.aroura.sentinel.common.enums.ChannelType;
+import com.aroura.sentinel.common.enums.SmsStatus;
 import com.aroura.sentinel.handler.domain.sms.MessageTypeSmsConfig;
 import com.aroura.sentinel.handler.domain.sms.SmsParam;
 import com.aroura.sentinel.handler.enums.LoadBalancerStrategy;
@@ -24,6 +26,7 @@ import com.aroura.sentinel.support.utils.AccountUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -61,6 +64,9 @@ public class SmsHandler extends BaseHandler{
     private AccountUtils accountUtils;
     @Autowired
     private ServiceLoadBalancerFactory<MessageTypeSmsConfig> serviceLoadBalancer;
+    /** 用于发布投递回执；共享库不直接依赖任何业务服务的客户端。 */
+    @Autowired(required = false)
+    private ApplicationEventPublisher eventPublisher;
 
     public SmsHandler() {
         channelCode = ChannelType.SMS.getCode();
@@ -85,6 +91,7 @@ public class SmsHandler extends BaseHandler{
                 List<SmsRecord> recordList = applicationContext.getBean(messageTypeSmsConfig.getScriptName(), SmsScript.class).send(smsParam);
                 if (CollUtil.isNotEmpty(recordList)) {
                     smsRecordDao.saveAll(recordList);
+                    publishReceipt(taskInfo, recordList);
                     return true;
                 }
             }
@@ -92,6 +99,29 @@ public class SmsHandler extends BaseHandler{
             log.error("SmsHandler#handler fail:{},params:{}", Throwables.getStackTraceAsString(e), JSON.toJSONString(smsParam));
         }
         return false;
+    }
+
+    /**
+     * 发布投递回执。
+     * <p>
+     * 渠道的真实答复此前只落在 sms_record 里，上游完全看不到 —— logistics 把
+     * 「msg-service 受理」直接记成 SENT，于是「已发送」里混着被渠道拒收的短信。
+     * <p>
+     * 用 Spring 事件而不是直接调 logistics：本类在共享库里，不该依赖某个业务服务的客户端。
+     * 没人监听时发布是空操作，不影响发送主链路。
+     */
+    private void publishReceipt(TaskInfo taskInfo, List<SmsRecord> recordList) {
+        if (eventPublisher == null || taskInfo.getBizId() == null) {
+            return;
+        }
+        // 任一接收者被渠道受理即视为已送达 —— 单接收者场景下即为该条的结果
+        boolean accepted = recordList.stream()
+                .anyMatch(r -> SmsStatus.SEND_SUCCESS.getCode().equals(r.getStatus()));
+        eventPublisher.publishEvent(NotificationReceipt.builder()
+                .bizId(taskInfo.getBizId())
+                .accepted(accepted)
+                .detail(accepted ? "渠道已受理" : "渠道拒绝受理，详见 sms_record")
+                .build());
     }
 
     /**

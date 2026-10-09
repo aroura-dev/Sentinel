@@ -1,0 +1,322 @@
+name: sentinelms
+
+# ============================================================
+# sentinel-ms 基础设施：Kafka + Zookeeper + Redis + 4×独立 MySQL + 5 服务 + 网关 + 演示台
+# 每个业务服务一个独立 MySQL 容器 + 自己的 init 脚本（auth/msg/logistics/agent）。
+#
+# 端口暴露面（安全关键）：
+#   本文件是**生产安全形态** —— 只发布 8080(网关) 与 5175(演示台)。
+#   业务服务(8081-8084)、MySQL(33061-33064)、Redis(6381)、Kafka(29092)、ZooKeeper(2181)
+#   一律不发布到宿主机，只走 compose 内部网络。
+#
+#   原因：下游服务无条件信任 X-User-Name / X-User-Role 头（见 docs/ARCHITECTURE.md §6.5），
+#   一旦业务服务端口对宿主可达，任何人伪造这两个头即可绕过网关鉴权；
+#   agent-service 的 /internal/** 与 msg-service 的 /send 更是完全不在鉴权范围内。
+#
+#   本地调试需要直连这些端口时，叠加 dev 覆盖文件（仅绑定回环地址）：
+#     docker compose -f compose.infra.yml -f compose.dev.yml up -d
+# ============================================================
+services:
+  zookeeper:
+    image: zookeeper:3.8.4
+    container_name: sentinelms-zookeeper
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  kafka:
+    image: wurstmeister/kafka:2.13-2.6.0
+    container_name: sentinelms-kafka
+    # broker id 固定为 1。若 ZooKeeper 里残留着上一个 kafka 容器的注册节点
+    # （容器被重建而 zookeeper 未被重建时会出现），启动会以 NodeExists 致命退出，
+    # 进而拖垮 msg-service。restart 让其自动重试，旧会话过期后即可注册成功。
+    restart: unless-stopped
+    depends_on:
+      zookeeper: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    environment:
+      KAFKA_BROKER_ID: 1
+      # 双 listener：INTERNAL(kafka:9092，供容器内自连/服务互连) + EXTERNAL(127.0.0.1:29092，供宿主机 jar 联调)
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://127.0.0.1:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # 业务主题给 3 个分区：单分区下同一个消费组内只能有一个消费者真正干活，
+      # 多实例部署时其余实例只能空转。分区数在主题首次创建时确定，已有卷上改这里不生效。
+      # 注意：分区数决定消费并行度上限，replica 仍为 1（本环境单 broker）。
+      KAFKA_CREATE_TOPICS: "sentinelBusiness:3:1,sentinelRecall:3:1,sentinelTraceLog:1:1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  redis:
+    image: redis:6-alpine
+    container_name: sentinelms-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mysql-auth:
+    image: mysql:8.0
+    container_name: sentinelms-mysql-auth
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_auth
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
+      TZ: Asia/Shanghai
+    volumes:
+      - auth-mysql-data:/var/lib/mysql
+      - ../mysql/auth/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  mysql-msg:
+    image: mysql:8.0
+    container_name: sentinelms-mysql-msg
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_msg
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
+      TZ: Asia/Shanghai
+    volumes:
+      - msg-mysql-data:/var/lib/mysql
+      - ../mysql/msg/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  mysql-logistics:
+    image: mysql:8.0
+    container_name: sentinelms-mysql-logistics
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_logistics
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
+      TZ: Asia/Shanghai
+    volumes:
+      - logistics-mysql-data:/var/lib/mysql
+      - ../mysql/logistics/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  mysql-agent:
+    image: mysql:8.0
+    container_name: sentinelms-mysql-agent
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置}
+      # Flyway 需连上目标库才能建表；库此前靠 init 脚本里的 CREATE DATABASE 建。
+      # 改由镜像启动时建空库，schema 全部交给 Flyway 管理。
+      MYSQL_DATABASE: sentinel_agent
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      # 显式设为 localhost：entrypoint 的默认值是 %，不设这行会创建 root@% 并授予全部权限。
+      MYSQL_ROOT_HOST: localhost
+      TZ: Asia/Shanghai
+    volumes:
+      - agent-mysql-data:/var/lib/mysql
+      - ../mysql/agent/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # ---------- 应用服务（构建：先 mvn -am package 出各 jar，再 docker compose build） ----------
+  sms-stub:
+    image: node:18-alpine
+    container_name: sentinelms-sms-stub
+    restart: unless-stopped
+    command: ["node", "-e", "require('http').createServer((q,s)=>{let b='';q.on('data',c=>b+=c);q.on('end',()=>{const p=new URLSearchParams(b),d=(p.get('mobile')||'').split(',').filter(Boolean).map((m,i)=>({mobile:m,sid:'s'+i,count:1,code:0,msg:'ok'}));s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({code:0,data:d}))})}).listen(18999,'0.0.0.0')"]
+
+  auth-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.auth-service}
+    container_name: sentinelms-auth-service
+    restart: unless-stopped
+    # auth-service 强依赖 Redis（会话存储）却原本不等待它就绪。
+    depends_on:
+      mysql-auth: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-auth:3306/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: sentinel_auth
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
+      # 验证码短信走真实引擎(msg-service)
+      SMS_ENGINE_MSG_URL: http://msg-service:8082
+      SMS_ENGINE_TEMPLATE_ID: "1011"
+      # 验证码不回传接口（从 Redis/短信查收，手动输入）；本地联调需要时临时置 true
+      SMS_DEV_RETURN_CODE: "false"
+      # 业务参数外置（同上）
+      SENTINEL_LOGIN_TOKEN_TTL_SECONDS: ${TOKEN_TTL_SECONDS:-7200}
+      AUTH_REMEMBER_TTL_SECONDS: ${REMEMBER_TTL_SECONDS:-604800}
+      AUTH_REGISTER_DEFAULT_ROLE: ${REGISTER_DEFAULT_ROLE:-MERCHANT}
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 512M}
+
+  msg-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.msg-service}
+    container_name: sentinelms-msg-service
+    restart: unless-stopped
+    # msg-service 强依赖 Kafka（消费管道）与 Redis（去重）却原本只等 MySQL：
+    # Kafka 未就绪时启动期即抛 "No resolvable bootstrap urls given in bootstrap.servers"
+    # 并直接退出，连带 logistics 的通知下发全部 Connection refused。
+    depends_on:
+      mysql-msg: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-msg:3306/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: sentinel_msg
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # 投递回执要回调 logistics 的 /internal/**，需要服务签名（同 logistics 调 agent 那套）
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+      SERVICE_LOGISTICS_URL: http://logistics-service:8083
+      # 原先只写在 jar 内的 local.properties，改一次要重新打包
+      DEDUPLICATION_RULE: ${DEDUPLICATION_RULE:-{"deduplication_10":{"num":1,"time":300},"deduplication_20":{"num":5}}}
+      FLOW_CONTROL_RULE: ${FLOW_CONTROL_RULE:-{"flow_control_40":1}}
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 1G}
+
+  logistics-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.logistics-service}
+    container_name: sentinelms-logistics-service
+    restart: unless-stopped
+    # 不等待 agent/msg：调它们失败会降级（默认文案 / 标 FAILED），不是硬依赖。
+    depends_on:
+      mysql-logistics: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-logistics:3306/sentinel_logistics?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: sentinel_logistics
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+      SERVICE_AGENT_URL: http://agent-service:8084
+      SERVICE_MSG_URL: http://msg-service:8082
+      # 业务参数外置：这些值原先只写在 application.yml 里，改一次要重新构建镜像。
+      NOTIFY_TEMPLATE_ID: ${NOTIFY_TEMPLATE_ID:-3}
+      NOTIFY_DEDUP_HOURS: ${NOTIFY_DEDUP_HOURS:-24}
+      NOTIFY_RETRY_MAX_ATTEMPTS: ${NOTIFY_RETRY_MAX_ATTEMPTS:-5}
+      NOTIFY_RETRY_STALE_PENDING_MINUTES: ${NOTIFY_RETRY_STALE_PENDING_MINUTES:-10}
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
+
+  agent-service:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.agent-service}
+    container_name: sentinelms-agent-service
+    restart: unless-stopped
+    depends_on:
+      mysql-agent: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-agent:3306/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: sentinel_agent
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 512M}
+
+  gateway:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.gateway}
+    container_name: sentinelms-gateway
+    restart: unless-stopped
+    environment:
+      AUTH_URI: http://auth-service:8081
+      LOGISTICS_URI: http://logistics-service:8083
+      SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+    ports: ["8080:8080"]
+    # 网关每个请求都要查 Redis 会话，且路由到 auth/logistics，三者都须就绪。
+    depends_on:
+      redis: {condition: service_healthy}
+      auth-service: {condition: service_healthy}
+      logistics-service: {condition: service_healthy}
+
+  frontend:
+    build: {context: ../.., dockerfile: infra/docker/Dockerfile.frontend}
+    container_name: sentinelms-frontend
+    restart: unless-stopped
+    ports: ["5175:5175"]
+    depends_on:
+      gateway: {condition: service_started}
+
+  # ---------- 可选：指标抓取 ----------
+  # 默认不启动（profiles 未启用），基础栈保持精简，CI 也不为此多拉一个镜像。
+  # 启用：docker compose -f compose.infra.yml --profile observability up -d
+  # 抓取目标见 prometheus/prometheus.yml；各服务指标在 /actuator/prometheus。
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: sentinelms-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    # 只绑回环：这是运维查询界面，不该对局域网或公网可达。
+    ports: ["127.0.0.1:9090:9090"]
+
+  # 可选：链路收集与查询界面，同样默认不启动。
+  # 与 prometheus 一样走 observability profile，但要真正上报还需在 .env 里
+  # 设 ZIPKIN_ENABLED=true 并重建服务容器（默认关闭是为了在没有收集端时不刷连接错误日志）。
+  # 注意：日志里的 traceId/spanId 不依赖它 —— 那部分始终有效。
+  zipkin:
+    image: openzipkin/zipkin:2.24
+    container_name: sentinelms-zipkin
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports: ["127.0.0.1:9411:9411"]
+
+volumes:
+  auth-mysql-data:
+  msg-mysql-data:
+  logistics-mysql-data:
+  agent-mysql-data:
+  prometheus-data:

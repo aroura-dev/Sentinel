@@ -47,8 +47,8 @@ public class AgentCallLogService {
      * @param status      状态：success/failed/timeout/degraded
      * @param traceId     链路 ID
      */
-    public Long recordAndReturnId(String agentName, Object input, Object output,
-                                  String toolsCalled, Integer tokenUsage, long latencyMs, String status, String traceId) {
+    public void record(String agentName, Object input, Object output,
+                       String toolsCalled, Integer tokenUsage, long latencyMs, String status, String traceId) {
         AgentCallLog callLog = AgentCallLog.builder()
                 .agentName(agentName)
                 .input(input == null ? null : JSON.toJSONString(input))
@@ -62,29 +62,11 @@ public class AgentCallLogService {
                 .build();
         log.info("[AgentCall] {} traceId={} status={} latencyMs={}ms", agentName, traceId, status, latencyMs);
         try {
-            return agentCallLogDao.insertAndReturnId(callLog);
+            agentCallLogDao.insert(callLog);
         } catch (Exception e) {
             // 日志入库失败不影响 Agent 主流程
             log.error("[AgentCallLog] 日志入库失败 agentName={} traceId={}", agentName, traceId, e);
-            return null;
         }
-    }
-
-    public void record(String agentName, Object input, Object output,
-                       String toolsCalled, Integer tokenUsage, long latencyMs, String status, String traceId) {
-        recordAndReturnId(agentName, input, output, toolsCalled, tokenUsage, latencyMs, status, traceId);
-    }
-
-    public void updateStatus(Long callLogId, String status, String output) {
-        agentCallLogDao.updateStatus(callLogId, status, output);
-    }
-
-    public List<Map<String, Object>> pendingGroups() {
-        return agentCallLogDao.pendingGroups();
-    }
-
-    public int pendingCount(String traceId) {
-        return agentCallLogDao.pendingCount(traceId);
     }
 
     /**

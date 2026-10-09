@@ -52,9 +52,6 @@ public class LangChain4jConfig {
      */
     @Bean
     public ChatLanguageModel chatLanguageModel(SentinelChatModelListener listener) {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            return new DisabledChatLanguageModel();
-        }
         return QwenChatModel.builder()
                 .apiKey(apiKey)
                 .modelName(modelName)
@@ -66,7 +63,6 @@ public class LangChain4jConfig {
 
     @Bean
     public ContentGenAssistant contentGenAssistant(ChatLanguageModel model, TemplateTool templateTool) {
-        AgentToolWhitelist.assertAllowed("ContentGenAssistant", templateTool);
         return AiServices.builder(ContentGenAssistant.class)
                 .chatLanguageModel(model)
                 .tools(templateTool)
@@ -75,7 +71,6 @@ public class LangChain4jConfig {
 
     @Bean
     public AnomalyDiagnoseAssistant anomalyDiagnoseAssistant(ChatLanguageModel model, AnomalyKnowledgeTool knowledgeTool) {
-        AgentToolWhitelist.assertAllowed("AnomalyDiagnoseAssistant", knowledgeTool);
         return AiServices.builder(AnomalyDiagnoseAssistant.class)
                 .chatLanguageModel(model)
                 .tools(knowledgeTool)
@@ -84,7 +79,6 @@ public class LangChain4jConfig {
 
     @Bean
     public WorkorderAssistant workorderAssistant(ChatLanguageModel model, WorkorderTool workorderTool, AnomalyKnowledgeTool knowledgeTool) {
-        AgentToolWhitelist.assertAllowed("WorkorderAssistant", workorderTool);
         return AiServices.builder(WorkorderAssistant.class)
                 .chatLanguageModel(model)
                 .tools(workorderTool, knowledgeTool)
@@ -93,7 +87,6 @@ public class LangChain4jConfig {
 
     @Bean
     public CsRouteAssistant csRouteAssistant(ChatLanguageModel model, LogisticsQueryTool logisticsQueryTool) {
-        AgentToolWhitelist.assertAllowed("CsRouteAssistant", logisticsQueryTool);
         return AiServices.builder(CsRouteAssistant.class)
                 .chatLanguageModel(model)
                 .tools(logisticsQueryTool)
@@ -102,7 +95,6 @@ public class LangChain4jConfig {
 
     @Bean
     public RouteAdviceAssistant routeAdviceAssistant(ChatLanguageModel model, ChannelQuoteTool channelQuoteTool) {
-        AgentToolWhitelist.assertAllowed("RouteAdviceAssistant", channelQuoteTool);
         return AiServices.builder(RouteAdviceAssistant.class)
                 .chatLanguageModel(model)
                 .tools(channelQuoteTool)
@@ -111,7 +103,6 @@ public class LangChain4jConfig {
 
     @Bean
     public EtaPredictAssistant etaPredictAssistant(ChatLanguageModel model, EtaPredictTool etaPredictTool) {
-        AgentToolWhitelist.assertAllowed("EtaPredictAssistant", etaPredictTool);
         return AiServices.builder(EtaPredictAssistant.class)
                 .chatLanguageModel(model)
                 .tools(etaPredictTool)

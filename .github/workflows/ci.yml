@@ -13,47 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend (mvn test)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: maven
-      - name: Backend tests
-        run: mvn -B -ntp test
-
-  frontend:
-    name: Frontend (vitest + build)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: sentinel-frontend
-    steps:
-      - uses: actions/checkout@v5
-      - name: Set up Node 20
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20.19'
-          cache: npm
-          cache-dependency-path: sentinel-frontend/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-
   microservices:
     name: Microservices (mvn test)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: microservices
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - name: Set up JDK 21
@@ -62,53 +25,15 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Install microservice parent POM
+      - name: Install parent POM
         run: mvn -B -ntp -N install
-      # 跑全部模块，不再只挑三个库模块 —— 之前的列表漏掉了 gateway 与各 service，
-      # 而恰恰是这些可部署单元一行测试都没有（鉴权原语、通知补偿的测试都在其中）。
       - name: Microservice backend tests
         run: mvn -B -ntp test
 
   deployment-smoke:
     name: Docker deployment smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v5
-      - name: Validate Compose config
-        run: docker compose -f docker-compose.sentinel.yml config --quiet
-      - name: Build and start stack
-        run: docker compose -f docker-compose.sentinel.yml up -d --build
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 60); do
-            if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Backend did not become healthy in time"
-          docker compose -f docker-compose.sentinel.yml logs --no-color backend
-          exit 1
-      - name: Verify administrator login
-        run: |
-          response=$(curl -fsS -X POST 'http://localhost:8080/api/auth/login' --data-urlencode 'username=张伟' --data-urlencode 'password=Admin@123')
-          echo "$response"
-          echo "$response" | grep -q '"status":"0"'
-      - name: Show container logs
-        if: always()
-        run: docker compose -f docker-compose.sentinel.yml logs --no-color
-      - name: Stop stack
-        if: always()
-        run: docker compose -f docker-compose.sentinel.yml down -v
-
-  microservices-smoke:
-    name: Microservices (build + deployment smoke)
-    runs-on: ubuntu-latest
     timeout-minutes: 40
-    defaults:
-      run:
-        working-directory: microservices
     steps:
       - uses: actions/checkout@v5
       - name: Set up JDK 21
@@ -127,23 +52,13 @@ jobs:
           cp services/logistics-service/target/logistics-service.jar dist/
           cp services/agent-service/target/agent-service.jar dist/
           cp gateway/target/sentinel-gateway.jar dist/
-
-      # compose 用 ${VAR:?} 强制要求口令存在（失败即报错，而非静默用空口令）。
-      # 从模板生成 .env —— 这样 CI 同时也验证了 .env.example 是完整的。
       - name: Prepare environment file
         run: cp infra/docker/.env.example infra/docker/.env
-
-      # build 与 up 拆成两步：合成一步时失败只报 "exit code 1"，无法判断是构建还是启动。
-      - name: Build images
-        working-directory: microservices/infra/docker
-        run: docker compose -f compose.infra.yml build
-
-      # 单独一步拉取基础镜像（mysql/redis/zookeeper/kafka/node），带重试。
-      # 动机：up -d 会在拉取失败时报错，与「容器起不来」混在一起无法区分；
-      # 而 GitHub runner 共享出口 IP，Docker Hub 匿名拉取限流是常见且瞬时的失败。
-      # --ignore-buildable 跳过本仓库自建的服务镜像，只拉第三方基础镜像。
+      - name: Validate compose config
+        working-directory: infra/docker
+        run: docker compose -f compose.infra.yml config --quiet
       - name: Pull base images
-        working-directory: microservices/infra/docker
+        working-directory: infra/docker
         run: |
           for attempt in 1 2 3; do
             if docker compose -f compose.infra.yml pull --ignore-buildable; then
@@ -152,19 +67,14 @@ jobs:
             echo "pull attempt $attempt failed; retrying in 15s"
             sleep 15
           done
-          echo "拉取基础镜像连续失败 3 次"; exit 1
-
+          echo "基础镜像连续拉取失败 3 次"; exit 1
       - name: Start stack
-        working-directory: microservices/infra/docker
-        run: docker compose -f compose.infra.yml up -d
-
+        working-directory: infra/docker
+        run: docker compose -f compose.infra.yml up -d --build
       - name: Show container states
         if: always()
-        working-directory: microservices/infra/docker
+        working-directory: infra/docker
         run: docker compose -f compose.infra.yml ps -a
-
-      # 注意：登录失败时服务返回 HTTP 200 + {"status":"A0001"}，
-      # 因此不能只用 curl -f 判就绪，必须校验响应体里的 "status":"0"。
       - name: Wait for gateway login
         run: |
           for i in $(seq 1 60); do
@@ -178,37 +88,14 @@ jobs:
           done
           echo "gateway did not accept login within timeout"
           exit 1
-
       - name: End-to-end smoke
-        working-directory: microservices/infra/tools
+        working-directory: infra/tools
         run: SMOKE_DOCKER=1 bash smoke_closed_loop.sh
-
-      # 失败时把「谁退了、为什么退」打出来。
-      # 同时以 ::error:: 形式发一份 annotation：Actions 的日志下载端点要求仓库管理员权限，
-      # 而 annotation 可以通过 check-runs API 匿名读取 —— 这是远程定位失败的唯一通道。
-      # annotation 的 message 不能含换行，需编码为 %0A。
       - name: Dump service logs on failure
         if: failure()
-        working-directory: microservices/infra/docker
-        run: |
-          echo "===== container states ====="
-          docker compose -f compose.infra.yml ps -a
-          STATES=$(docker compose -f compose.infra.yml ps -a 2>&1 | tr '\n' '%0A')
-          echo "::error title=compose-ps::$STATES"
-
-          echo "===== exited containers ====="
-          for c in $(docker ps -a --filter "name=sentinelms-" --filter "status=exited" --format '{{.Names}}'); do
-            CODE=$(docker inspect -f '{{.State.ExitCode}}' "$c")
-            echo "----- $c (exit $CODE) -----"
-            docker logs --no-color --tail 40 "$c" 2>&1
-            MSG=$(docker logs --no-color --tail 40 "$c" 2>&1 | tr '\n' '%0A' | tr -d '\r')
-            echo "::error title=$c-exit-$CODE::${MSG:0:2000}"
-          done
-
-          echo "===== all logs (tail) ====="
-          docker compose -f compose.infra.yml logs --no-color --tail 120
-
+        working-directory: infra/docker
+        run: docker compose -f compose.infra.yml logs --no-color --tail 120
       - name: Tear down
         if: always()
-        working-directory: microservices/infra/docker
+        working-directory: infra/docker
         run: docker compose -f compose.infra.yml down -v --remove-orphans

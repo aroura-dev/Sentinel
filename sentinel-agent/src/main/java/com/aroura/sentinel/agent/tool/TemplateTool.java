@@ -1,54 +1,33 @@
 package com.aroura.sentinel.agent.tool;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
 
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * 通知模板查询工具（Tool Calling / 模板优先）
  * <p>
- * 复用 sentinel 的 message_template 表：按「物流节点 + 语言」匹配模板。
- * 约定模板命名规则：{@code sentinel:{node}:{language}}，例如 {@code sentinel:IMPORT_CUSTOMS:ru}。
- * 供 {@code ContentGenAgent} 实现「模板优先，Agent 兜底」。
+ * 【sentinel-ms 改造】message_template 已拆到 msg-service(sentinel_msg)，agent 进程不再直读，
+ * 此处模板命中短路改为空实现（返回 null → 走 LLM / 降级路径）；如需模板优先，由 msg-service
+ * 提供读接口后改远程调用。其余 Agent 的 Tool 签名保持兼容。
  *
- * @author sentinel
+ * @author sentinel-ms
  */
 @Component
 public class TemplateTool {
 
-    private final JdbcTemplate jdbcTemplate;
+    private static final Logger log = LoggerFactory.getLogger(TemplateTool.class);
 
-    public TemplateTool(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public TemplateTool() {
     }
 
-    @Tool("按物流节点和语言从 message_template 表查询通知模板")
+    @Tool("按物流节点和语言从消息平台查询通知模板（agent 侧不直读 msg 库，返回 null 走兜底）")
     public String queryTemplate(@P("物流节点 codeEn，如 IMPORT_CUSTOMS") String node,
                                 @P("语言，如 ru/en/es/zh") String language) {
-        String name = "sentinel:" + node + ":" + language;
-        List<String> rows = jdbcTemplate.query(
-                "SELECT msg_content FROM message_template WHERE name = ? AND is_deleted = 0 LIMIT 1",
-                (rs, i) -> rs.getString("msg_content"), name);
-        if (rows == null || rows.isEmpty()) {
-            return null;
-        }
-        String content = rows.get(0);
-        // msg_content 为 JSON 时提取纯文本 content 字段，否则原样返回
-        if (content != null && content.trim().startsWith("{")) {
-            try {
-                JSONObject obj = JSON.parseObject(content);
-                if (obj != null && obj.getString("content") != null) {
-                    return obj.getString("content");
-                }
-            } catch (Exception ignored) {
-                // 非法 JSON 按原样返回
-            }
-        }
-        return content;
+        log.debug("[TemplateTool] msg 库已拆分，跳过模板命中 node={} lang={}", node, language);
+        return null;
     }
 }

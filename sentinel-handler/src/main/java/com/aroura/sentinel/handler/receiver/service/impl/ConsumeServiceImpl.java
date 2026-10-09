@@ -14,9 +14,11 @@ import com.aroura.sentinel.handler.utils.GroupIdMappingUtils;
 import com.aroura.sentinel.support.utils.LogUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Sentinel
@@ -38,11 +40,26 @@ public class ConsumeServiceImpl implements ConsumeService {
     private HandlerHolder handlerHolder;
 
     @Override
-    public void consume2Send(List<TaskInfo> taskInfoLists) {
+    public void consume2Send(List<TaskInfo> taskInfoLists, Acknowledgment ack) {
+        if (CollUtil.isEmpty(taskInfoLists)) {
+            // 空记录也要提交，否则位移停在原地
+            if (ack != null) {
+                ack.acknowledge();
+            }
+            return;
+        }
         String topicGroupId = GroupIdMappingUtils.getGroupIdByTaskInfo(CollUtil.getFirst(taskInfoLists.iterator()));
+        // 一条记录会拆成 N 个任务并行处理，只有全部结束后才能提交位移。
+        // 计数放在 Task 的 finally 里递减，任何一条抛异常也不会漏掉最后一次递减 ——
+        // 漏掉就等于位移永远提交不了，该分区会卡死在这一条消息上。
+        AtomicInteger pending = new AtomicInteger(taskInfoLists.size());
         for (TaskInfo taskInfo : taskInfoLists) {
             logUtils.print(LogParam.builder().bizType(LOG_BIZ_TYPE).object(taskInfo).build(), AnchorInfo.builder().bizId(taskInfo.getBizId()).messageId(taskInfo.getMessageId()).ids(taskInfo.getReceiver()).businessId(taskInfo.getBusinessId()).state(AnchorState.RECEIVE.getCode()).build());
-            Task task = context.getBean(Task.class).setTaskInfo(taskInfo);
+            Task task = context.getBean(Task.class).setTaskInfo(taskInfo).setOnCompleted(() -> {
+                if (pending.decrementAndGet() == 0 && ack != null) {
+                    ack.acknowledge();
+                }
+            });
             taskPendingHolder.route(topicGroupId).execute(task);
         }
     }

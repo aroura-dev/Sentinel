@@ -3,12 +3,8 @@ package com.aroura.sentinel.agent.dao;
 import com.aroura.sentinel.agent.model.AgentCallLog;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -32,49 +28,11 @@ public class AgentCallLogDao {
     }
 
     public void insert(AgentCallLog log) {
-        insertAndReturnId(log);
-    }
-
-    public Long insertAndReturnId(AgentCallLog log) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO agent_call_log (agent_name, input, output, tools_called, token_usage, latency_ms, status, trace_id) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, log.getAgentName());
-            statement.setString(2, log.getInput());
-            statement.setString(3, log.getOutput());
-            statement.setString(4, log.getToolsCalled());
-            statement.setInt(5, log.getTokenUsage() == null ? 0 : log.getTokenUsage());
-            statement.setInt(6, log.getLatencyMs() == null ? 0 : log.getLatencyMs());
-            statement.setString(7, log.getStatus());
-            statement.setString(8, log.getTraceId());
-            return statement;
-        }, keyHolder);
-        Number key = keyHolder.getKey();
-        return key == null ? null : key.longValue();
-    }
-
-    public void updateStatus(Long id, String status, String output) {
         jdbcTemplate.update(
-                "UPDATE agent_call_log SET status=?, output=CASE WHEN ? IS NULL OR ?='' "
-                        + "THEN output ELSE CONCAT(COALESCE(output,''), '\n', ?) END, updated_at=NOW() WHERE id=? AND is_deleted=0",
-                status, output, output, output, id);
-    }
-
-    public List<Map<String, Object>> pendingGroups() {
-        return jdbcTemplate.queryForList(
-                "SELECT trace_id, COUNT(*) AS pending FROM agent_call_log "
-                        + "WHERE is_deleted=0 AND status='pending_approval' "
-                        + "GROUP BY trace_id ORDER BY MAX(id) DESC LIMIT 50");
-    }
-
-    public int pendingCount(String traceId) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM agent_call_log WHERE is_deleted=0 AND status='pending_approval' AND trace_id=?",
-                Integer.class, traceId);
-        return count == null ? 0 : count;
+                "INSERT INTO agent_call_log (agent_name, input, output, tools_called, token_usage, latency_ms, status, trace_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                log.getAgentName(), log.getInput(), log.getOutput(), log.getToolsCalled(),
+                log.getTokenUsage(), log.getLatencyMs(), log.getStatus(), log.getTraceId());
     }
 
     public Map<String, Object> queryPage(String agentName, String traceId, String status, int page, int perPage) {
@@ -97,14 +55,9 @@ public class AgentCallLogDao {
         String whereSql = where.toString();
 
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_call_log" + whereSql, Integer.class, finalArgs);
-        // whereSql 里的 ? 必须一并绑定：原先只传了分页参数，导致任何筛选条件都会
-        // 报 "No value specified for parameter N"（现象是 count 正常、列表 500）
-        Object[] pageArgs = Arrays.copyOf(finalArgs, idx + 2);
-        pageArgs[idx] = perPage;
-        pageArgs[idx + 1] = (page - 1) * perPage;
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT * FROM agent_call_log" + whereSql + " ORDER BY id DESC LIMIT ? OFFSET ?",
-                pageArgs);
+                new Object[]{perPage, (page - 1) * perPage});
 
         Map<String, Object> result = new HashMap<>(4);
         result.put("count", count == null ? 0 : count);

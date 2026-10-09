@@ -32,12 +32,28 @@ public class Task implements Runnable {
     @Qualifier("handlerProcessController")
     private ProcessController processController;
 
+    /**
+     * 本任务处理结束后的回调，用于 Kafka 手动提交 offset。
+     * <p>
+     * 任务跑在线程池里、而监听器早已返回 —— 消费端因此必须在**任务真正结束**时才提交位移，
+     * 否则进程崩溃会丢掉尚未处理的消息。
+     */
+    private Runnable onCompleted;
+
     @Override
     public void run() {
-        ProcessContext<ProcessModel> context = ProcessContext.builder()
-                .processModel(taskInfo).code(TaskPipelineConfig.PIPELINE_HANDLER_CODE)
-                .needBreak(false).response(BasicResultVO.success())
-                .build();
-        processController.process(context);
+        try {
+            ProcessContext<ProcessModel> context = ProcessContext.builder()
+                    .processModel(taskInfo).code(TaskPipelineConfig.PIPELINE_HANDLER_CODE)
+                    .needBreak(false).response(BasicResultVO.success())
+                    .build();
+            processController.process(context);
+        } finally {
+            // 必须放在 finally：漏掉一次回调就有一个位移永远提交不了，
+            // 会把该分区卡在一条消息上，后续消息全部无法消费。
+            if (onCompleted != null) {
+                onCompleted.run();
+            }
+        }
     }
 }

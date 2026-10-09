@@ -5,7 +5,7 @@
 ## 验证方式
 
 - [ ] `mvn -B -ntp test`
-- [ ] `cd sentinel-frontend && npm test && npm run build`
+- [ ] `cd frontend-vue && npm test && npm run build`
 - [ ] `docker compose -f docker-compose.sentinel.yml up -d --build`
 - [ ] 登录、健康检查或相关接口已手动验证
 

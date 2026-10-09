@@ -50,8 +50,6 @@ public class WorkorderAgent {
             JSONObject result = workorder == null ? null : JSON.parseObject(JSON.toJSONString(workorder));
             if (result == null) {
                 result = fallback();
-            } else if (!result.containsKey("degraded")) {
-                result.put("degraded", false);
             }
             JSONObject input = new JSONObject();
             input.put("anomalyDesc", anomalyDesc);
@@ -74,7 +72,6 @@ public class WorkorderAgent {
         fallback.put("type", "customs_delay");
         fallback.put("level", "P1");
         fallback.put("sop", "1.联系物流商核实 2.通知买家 3.跟进处理结果");
-        fallback.put("degraded", true);
         return fallback;
     }
 }

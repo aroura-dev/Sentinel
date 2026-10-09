@@ -47,7 +47,7 @@ public class ContentGenAgent {
      * 生成通知文案
      *
      * @param node        物流节点（LogisticsNode.codeEn）
-     * @param language    买家语言（国内化后统一为 zh）
+     * @param language    买家语言（ru/en/es）
      * @param productInfo 商品信息
      * @param orderNo     订单号
      * @param traceId     链路 ID

@@ -39,23 +39,23 @@ public class ContentGenAgentDegradeTest {
 
     @Test
     void templateHitShortCircuitsLlm() {
-        when(templateTool.queryTemplate("IN_TRANSIT", "en")).thenReturn("Your package is in transit.");
+        when(templateTool.queryTemplate("IN_TRANSIT", "zh")).thenReturn("您的包裹正在运输中。");
 
-        String result = contentGenAgent.generate("IN_TRANSIT", "en", "商品信息", "OT001", "trace-1");
+        String result = contentGenAgent.generate("IN_TRANSIT", "zh", "商品信息", "OT001", "trace-1");
 
-        assertEquals("Your package is in transit.", result);
+        assertEquals("您的包裹正在运输中。", result);
         verify(contentGenAssistant, never()).generate(anyString(), anyString(), anyString(), anyString());
-        verify(agentCallLogService).record(eq("ContentGenAgent"), any(), eq("Your package is in transit."),
+        verify(agentCallLogService).record(eq("ContentGenAgent"), any(), eq("您的包裹正在运输中。"),
                 isNull(), isNull(), anyLong(), eq("success"), eq("trace-1"));
     }
 
     @Test
     void llmFailureDegradesToDefaultTemplate() {
-        when(templateTool.queryTemplate("IN_TRANSIT", "en")).thenReturn(null);
-        when(contentGenAssistant.generate("IN_TRANSIT", "en", "商品信息", "OT001"))
+        when(templateTool.queryTemplate("IN_TRANSIT", "zh")).thenReturn(null);
+        when(contentGenAssistant.generate("IN_TRANSIT", "zh", "商品信息", "OT001"))
                 .thenThrow(new RuntimeException("LLM 不可用"));
 
-        String result = contentGenAgent.generate("IN_TRANSIT", "en", "商品信息", "OT001", "trace-1");
+        String result = contentGenAgent.generate("IN_TRANSIT", "zh", "商品信息", "OT001", "trace-1");
 
         assertEquals("您的订单状态：IN_TRANSIT", result);
         verify(agentCallLogService).record(eq("ContentGenAgent"), isNull(), eq(result),

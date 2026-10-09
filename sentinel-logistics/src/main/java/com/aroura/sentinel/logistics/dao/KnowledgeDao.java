@@ -49,21 +49,6 @@ public class KnowledgeDao {
     }
 
     /**
-     * 按业务关键词检索知识库。用于 Java 智能问答的轻量 RAG，不把用户文本直接拼进 SQL。
-     */
-    public List<Map<String, Object>> search(String keyword, int limit) {
-        if (keyword == null || keyword.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        String like = "%" + keyword.trim() + "%";
-        return jdbcTemplate.queryForList(
-                "SELECT * FROM anomaly_knowledge WHERE is_deleted = 0 AND ("
-                        + "status_code LIKE ? OR type LIKE ? OR description LIKE ? OR suggestion LIKE ?) "
-                        + "ORDER BY CASE WHEN status_code LIKE ? THEN 0 WHEN type LIKE ? THEN 1 ELSE 2 END, id ASC LIMIT ?",
-                like, like, like, like, like, like, Math.max(1, Math.min(limit, 10)));
-    }
-
-    /**
      * 新增或更新（按 status_code 唯一）
      */
     public void save(Long id, String statusCode, String type, String description, Integer avgDurationHours, String suggestion) {
