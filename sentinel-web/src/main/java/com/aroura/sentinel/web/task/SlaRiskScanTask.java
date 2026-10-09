@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * SLA 风险扫描：在途订单超承诺时效 → RISK/BREACHED；首次 BREACHED 自动建 sla_breach 工单
  * <p>
- * 与 {@link com.aroura.sentinel.logistics.task.AnomalyScanTask}（清关滞留→CUSTOMS_DELAY）互补。
+ * 与 {@link com.aroura.sentinel.logistics.task.AnomalyScanTask}（分拨滞留→CUSTOMS_DELAY）互补。
  *
  * @author sentinel
  */

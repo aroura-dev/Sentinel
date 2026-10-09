@@ -162,7 +162,7 @@ CREATE TABLE `carrier_channel` (
   `channel_code` varchar(64) NOT NULL COMMENT '渠道编码',
   `channel_name` varchar(128) NOT NULL COMMENT '渠道名称',
   `type` varchar(16) NOT NULL COMMENT '运输方式:rail/air/sea/express',
-  `dest_country` varchar(8) NOT NULL COMMENT '目的国(RU/US/BR/DE)',
+  `dest_country` varchar(8) NOT NULL COMMENT '目的省份/区域（历史字段名兼容）',
   `transit_days_min` int(11) NOT NULL DEFAULT '1' COMMENT 'SLA最小时效(天)',
   `transit_days_max` int(11) NOT NULL DEFAULT '10' COMMENT 'SLA最大时效(天)',
   `tracking_prefix` varchar(8) DEFAULT NULL COMMENT 'tracking_no前缀',
@@ -177,7 +177,7 @@ CREATE TABLE `carrier_channel` (
   UNIQUE KEY `uk_channel_code` (`channel_code`),
   KEY `idx_carrier_id` (`carrier_id`),
   KEY `idx_dest_country` (`dest_country`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COMMENT='物流渠道(承运人×目的国×时效)';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COMMENT='物流渠道(承运人×目的区域×时效)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40000 ALTER TABLE `carrier_channel` DISABLE KEYS */;
@@ -189,7 +189,7 @@ DROP TABLE IF EXISTS `carrier_rate`;
 CREATE TABLE `carrier_rate` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `channel_id` bigint(20) NOT NULL COMMENT '渠道ID',
-  `zone` varchar(16) NOT NULL DEFAULT 'DEFAULT' COMMENT '区域(目的国/分区),DEFAULT=渠道全域',
+  `zone` varchar(16) NOT NULL DEFAULT 'DEFAULT' COMMENT '区域(目的省份/分区),DEFAULT=渠道全域',
   `min_weight_kg` decimal(10,3) NOT NULL COMMENT '重量段下限',
   `max_weight_kg` decimal(10,3) DEFAULT NULL COMMENT '重量段上限(NULL=开放上限)',
   `mode` varchar(20) NOT NULL COMMENT '计费方式:PER_KG单价 | FIRST_CONTINUED首续重',
@@ -267,7 +267,7 @@ CREATE TABLE `logistics_order` (
   `buyer_language` varchar(10) NOT NULL DEFAULT 'zh' COMMENT '买家语言：ru/en/es/zh',
   `merchant_id` bigint(20) DEFAULT NULL COMMENT '商家ID',
   `merchant_name` varchar(64) DEFAULT NULL COMMENT '商家名称',
-  `destination_country` varchar(32) DEFAULT NULL COMMENT '目的国',
+  `destination_country` varchar(32) DEFAULT NULL COMMENT '目的省份/区域（历史字段名兼容）',
   `current_node` varchar(32) NOT NULL DEFAULT 'CREATED' COMMENT '当前物流节点（LogisticsNode.codeEn）',
   `review_status` varchar(16) NOT NULL DEFAULT 'APPROVED' COMMENT '订单审核状态: PENDING/APPROVED/REJECTED',
   `channel_id` bigint(20) DEFAULT NULL COMMENT '物流渠道ID(carrier_channel.id)',
@@ -411,7 +411,7 @@ CREATE TABLE `product` (
   `merchant_id` bigint(20) NOT NULL COMMENT '商家ID',
   `sku` varchar(64) NOT NULL COMMENT 'SKU编码',
   `name` varchar(256) NOT NULL COMMENT '商品名称',
-  `hs_code` varchar(32) DEFAULT NULL COMMENT '海关HS编码',
+  `hs_code` varchar(32) DEFAULT NULL COMMENT '商品监管编码（历史字段名兼容）',
   `declared_value` decimal(12,2) DEFAULT '0.00' COMMENT '单件申报价值',
   `currency` varchar(8) DEFAULT 'CNY' COMMENT '申报币种',
   `weight_kg` decimal(10,3) NOT NULL COMMENT '单件实重kg',
@@ -471,7 +471,7 @@ CREATE TABLE `warehouse` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40000 ALTER TABLE `warehouse` DISABLE KEYS */;
-INSERT INTO `warehouse` VALUES (1,'WH-SZ','深圳仓','CN','深圳','宝安区福永街道国际物流园A区',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0),(2,'WH-SH','上海仓','CN','上海','青浦区华新镇仓储基地B栋',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0);
+INSERT INTO `warehouse` VALUES (1,'WH-SZ','深圳仓','CN','深圳','宝安区福永街道华南物流园A区',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0),(2,'WH-SH','上海仓','CN','上海','青浦区华新镇仓储基地B栋',1,'2026-09-05 09:03:15','2026-09-05 09:03:15',0);
 /*!40000 ALTER TABLE `warehouse` ENABLE KEYS */;
 DROP TABLE IF EXISTS `waybill`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -549,7 +549,7 @@ CREATE TABLE `workorder` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40000 ALTER TABLE `workorder` DISABLE KEYS */;
-INSERT INTO `workorder` VALUES (400001,'OMT-SEED-0007','customs_delay','P1','订单在物流环节发生中转延误异常（节点 CUSTOMS_DELAY）','{\"type\":\"customs_delay\",\"level\":\"P1\",\"sop\":\"1.联系物流商核实 2.通知买家预计延误时间\",\"reason\":\"海关抽检，包裹在目的国海关停留\"}','1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知','OPEN','carrier',0.00,0.00,1,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400002,'OMT-SEED-0010','delivery_failed','P2','订单在物流环节发生派送失败异常（节点 DELIVERY_FAILED）','{\"type\":\"delivery_failed\",\"level\":\"P2\",\"sop\":\"1.联系买家预约派送时间 2.重新安排派送\",\"reason\":\"买家不在家，派送失败\"}','1.联系买家预约派送时间 2.重新安排派送','PROCESSING','merchant',120.00,0.00,0,'CNY','商家提供错误地址，改派中',NULL,'SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:16',0),(400003,'OMT-SEED-0015','lost','P0','订单在物流环节发生丢件异常（节点 LOST）','{\"type\":\"lost\",\"level\":\"P0\",\"sop\":\"1.联系物流商核实 2.创建丢件工单 3.建议退款\",\"reason\":\"国际运输途中丢件\"}','1.联系物流商核实 2.创建丢件工单 3.建议退款','OPEN','carrier',420.00,420.00,1,'CNY','丢失理赔已赔付','2026-09-05 09:03:15','SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:16',0),(400004,'OMT-SEED-0016','returned','P1','订单在物流环节发生退回异常（节点 RETURNED）','{\"type\":\"returned\",\"level\":\"P1\",\"sop\":\"1.核实退回原因 2.通知买家 3.跟进退款\",\"reason\":\"包裹退回发件地\"}','1.核实退回原因 2.通知买家 3.跟进退款','CLOSED','platform',150.00,50.00,1,'CNY','中转延误平台补偿',NULL,'SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400005,'OMT-TMS-SEED-0005','sla_breach','P1','SLA 违约：中转滞留超过承诺时效',NULL,NULL,'OPEN',NULL,0.00,0.00,1,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400006,'OMT-TMS-SEED-0002','lost','P0','整件包裹在干线运输中丢失，买家要求按货值全额索赔',NULL,NULL,'PROCESSING','carrier',640.00,0.00,0,'CNY',NULL,NULL,'SUBMITTED','2026-09-04 09:03:16',NULL,NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400007,'OMT-TMS-SEED-0008','lost','P1','运单在转运后物流记录中断，疑似丢失，进入责任认定',NULL,NULL,'PROCESSING','carrier',420.00,0.00,0,'CNY',NULL,NULL,'SUBMITTED','2026-09-05 03:03:16',NULL,NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400008,'OMT-TMS-SEED-0004','customs_delay','P1','中转延误超承诺 3 天，买家索赔时效损失',NULL,NULL,'RESOLVED','carrier',200.00,120.00,0,'CNY','承运时效延误，核定赔付货值 60%',NULL,'APPROVED','2026-09-01 09:03:16','2026-09-03 09:03:16',NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400009,'OMT-TMS-SEED-0005','customs_delay','P2','延迟系商家晚发货导致，非承运运输时效问题，驳回索赔',NULL,NULL,'RESOLVED','merchant',200.00,0.00,0,'CNY',NULL,NULL,'REJECTED','2026-08-31 09:03:16','2026-09-01 09:03:16',NULL,'发货延迟属商家责任，驳回对承运商的理赔','2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400010,'OMT-TMS-SEED-0010','delivery_failed','P1','订单在物流环节发生delivery_failed异常（节点 DELIVERY_FAILED）','{\"level\":\"P1\",\"sop\":\"1. 立即联系承运商核实失败原因（如收件人拒收、地址错误、电话不通、无人签收等）；2. 核对订单收件信息准确性，确认是否需更新或补发；3. 若属可重派场景，48小时内安排重新配送；4. 若属拒收或客户主动取消，触发退货流程并同步ERP系统；5. 向客户发送致歉及解决方案短信/站内信；6. 工单闭环前需上传承运商反馈截图及处理结果说明。\",\"type\":\"delivery_failed\"}','1. 立即联系承运商核实失败原因（如收件人拒收、地址错误、电话不通、无人签收等）；2. 核对订单收件信息准确性，确认是否需更新或补发；3. 若属可重派场景，48小时内安排重新配送；4. 若属拒收或客户主动取消，触发退货流程并同步ERP系统；5. 向客户发送致歉及解决方案短信/站内信；6. 工单闭环前需上传承运商反馈截图及处理结果说明。','OPEN',NULL,0.00,0.00,0,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:04:24','2026-09-05 09:04:24',0),(400011,'OMT-TMS-SEED-0009','sla_breach','P1','SLA 违约：订单超承诺时效（渠道承诺 4 天，已滞留 5 天）',NULL,NULL,'OPEN',NULL,0.00,0.00,0,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:04:29','2026-09-05 09:04:29',0);
+INSERT INTO `workorder` VALUES (400001,'OMT-SEED-0007','customs_delay','P1','订单在物流环节发生中转延误异常（节点 CUSTOMS_DELAY）','{\"type\":\"customs_delay\",\"level\":\"P1\",\"sop\":\"1.联系物流商核实 2.通知买家预计延误时间\",\"reason\":\"分拨中心抽检，包裹在中转分拨停留\"}','1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知','OPEN','carrier',0.00,0.00,1,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400002,'OMT-SEED-0010','delivery_failed','P2','订单在物流环节发生派送失败异常（节点 DELIVERY_FAILED）','{\"type\":\"delivery_failed\",\"level\":\"P2\",\"sop\":\"1.联系买家预约派送时间 2.重新安排派送\",\"reason\":\"买家不在家，派送失败\"}','1.联系买家预约派送时间 2.重新安排派送','PROCESSING','merchant',120.00,0.00,0,'CNY','商家提供错误地址，改派中',NULL,'SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:16',0),(400003,'OMT-SEED-0015','lost','P0','订单在物流环节发生丢件异常（节点 LOST）','{\"type\":\"lost\",\"level\":\"P0\",\"sop\":\"1.联系物流商核实 2.创建丢件工单 3.建议退款\",\"reason\":\"干线运输途中丢件\"}','1.联系物流商核实 2.创建丢件工单 3.建议退款','OPEN','carrier',420.00,420.00,1,'CNY','丢失理赔已赔付','2026-09-05 09:03:15','SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:16',0),(400004,'OMT-SEED-0016','returned','P1','订单在物流环节发生退回异常（节点 RETURNED）','{\"type\":\"returned\",\"level\":\"P1\",\"sop\":\"1.核实退回原因 2.通知买家 3.跟进退款\",\"reason\":\"包裹退回发件地\"}','1.核实退回原因 2.通知买家 3.跟进退款','CLOSED','platform',150.00,50.00,1,'CNY','中转延误平台补偿',NULL,'SUBMITTED','2026-09-05 09:03:15',NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400005,'OMT-TMS-SEED-0005','sla_breach','P1','SLA 违约：中转滞留超过承诺时效',NULL,NULL,'OPEN',NULL,0.00,0.00,1,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:03:15','2026-09-05 09:03:18',0),(400006,'OMT-TMS-SEED-0002','lost','P0','整件包裹在干线运输中丢失，买家要求按货值全额索赔',NULL,NULL,'PROCESSING','carrier',640.00,0.00,0,'CNY',NULL,NULL,'SUBMITTED','2026-09-04 09:03:16',NULL,NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400007,'OMT-TMS-SEED-0008','lost','P1','运单在转运后物流记录中断，疑似丢失，进入责任认定',NULL,NULL,'PROCESSING','carrier',420.00,0.00,0,'CNY',NULL,NULL,'SUBMITTED','2026-09-05 03:03:16',NULL,NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400008,'OMT-TMS-SEED-0004','customs_delay','P1','中转延误超承诺 3 天，买家索赔时效损失',NULL,NULL,'RESOLVED','carrier',200.00,120.00,0,'CNY','承运时效延误，核定赔付货值 60%',NULL,'APPROVED','2026-09-01 09:03:16','2026-09-03 09:03:16',NULL,NULL,'2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400009,'OMT-TMS-SEED-0005','customs_delay','P2','延迟系商家晚发货导致，非承运运输时效问题，驳回索赔',NULL,NULL,'RESOLVED','merchant',200.00,0.00,0,'CNY',NULL,NULL,'REJECTED','2026-08-31 09:03:16','2026-09-01 09:03:16',NULL,'发货延迟属商家责任，驳回对承运商的理赔','2026-09-05 09:03:16','2026-09-05 09:03:16',0),(400010,'OMT-TMS-SEED-0010','delivery_failed','P1','订单在物流环节发生delivery_failed异常（节点 DELIVERY_FAILED）','{\"level\":\"P1\",\"sop\":\"1. 立即联系承运商核实失败原因（如收件人拒收、地址错误、电话不通、无人签收等）；2. 核对订单收件信息准确性，确认是否需更新或补发；3. 若属可重派场景，48小时内安排重新配送；4. 若属拒收或客户主动取消，触发退货流程并同步ERP系统；5. 向客户发送致歉及解决方案短信/站内信；6. 工单闭环前需上传承运商反馈截图及处理结果说明。\",\"type\":\"delivery_failed\"}','1. 立即联系承运商核实失败原因（如收件人拒收、地址错误、电话不通、无人签收等）；2. 核对订单收件信息准确性，确认是否需更新或补发；3. 若属可重派场景，48小时内安排重新配送；4. 若属拒收或客户主动取消，触发退货流程并同步ERP系统；5. 向客户发送致歉及解决方案短信/站内信；6. 工单闭环前需上传承运商反馈截图及处理结果说明。','OPEN',NULL,0.00,0.00,0,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:04:24','2026-09-05 09:04:24',0),(400011,'OMT-TMS-SEED-0009','sla_breach','P1','SLA 违约：订单超承诺时效（渠道承诺 4 天，已滞留 5 天）',NULL,NULL,'OPEN',NULL,0.00,0.00,0,'CNY',NULL,NULL,'NONE',NULL,NULL,NULL,NULL,'2026-09-05 09:04:29','2026-09-05 09:04:29',0);
 /*!40000 ALTER TABLE `workorder` ENABLE KEYS */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -560,4 +560,3 @@ INSERT INTO `workorder` VALUES (400001,'OMT-SEED-0007','customs_delay','P1','订
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-

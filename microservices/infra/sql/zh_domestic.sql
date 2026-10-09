@@ -22,13 +22,13 @@ WHERE merchant_name REGEXP '跨境|国际|贸易|进出口';
 
 -- 2) 承运商
 UPDATE carrier SET carrier_name = CASE carrier_code
-    WHEN 'CARGOWAY' THEN '环球货运' WHEN 'AIRGO' THEN '航空快运' WHEN 'SEAGO' THEN '海运全球'
+    WHEN 'CARGOWAY' THEN '华南城配' WHEN 'AIRGO' THEN '华东快运' WHEN 'SEAGO' THEN '宁波干线'
     ELSE CONCAT('承运商', carrier_code) END
 WHERE carrier_name REGEXP '[А-Яа-яЁё]';
 
 -- 3) 物流渠道
 UPDATE carrier_channel SET channel_name = CASE channel_code
-    WHEN 'GD-RAIL' THEN '广东铁路专线' WHEN 'GD-EXPR' THEN '广东快运'
+    WHEN 'GD-RAIL' THEN '华南干线专线' WHEN 'GD-EXPR' THEN '广东快运'
     WHEN 'ZJ-EXPR' THEN '浙江快运' WHEN 'SC-EXPR' THEN '四川快运'
     ELSE CONCAT('国内渠道', channel_code) END
 WHERE channel_name REGEXP '[А-Яа-яЁё]';
@@ -36,7 +36,7 @@ WHERE channel_name REGEXP '[А-Яа-яЁё]';
 -- 4) 仓库
 UPDATE warehouse SET warehouse_name = CASE warehouse_code
     WHEN 'WH-SZ' THEN '深圳仓' WHEN 'WH-SH' THEN '上海仓' ELSE CONCAT('仓库', warehouse_code) END,
-  address = CONCAT('中国·', warehouse_code, ' 境内集货仓')
+  address = CONCAT(warehouse_code, ' 国内集货仓')
 WHERE warehouse_name REGEXP '[А-Яа-яЁё]' OR address REGEXP '[А-Яа-яЁё]';
 
 -- 5) 商品

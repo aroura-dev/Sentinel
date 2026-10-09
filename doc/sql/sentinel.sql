@@ -18,7 +18,7 @@ CREATE TABLE `logistics_order` (
     `buyer_language` VARCHAR(10) NOT NULL DEFAULT 'zh' COMMENT '买家语言：ru/en/es/zh',
     `merchant_id` BIGINT DEFAULT NULL COMMENT '商家ID',
     `merchant_name` VARCHAR(64) DEFAULT NULL COMMENT '商家名称',
-    `destination_country` VARCHAR(32) DEFAULT NULL COMMENT '目的国',
+    `destination_country` VARCHAR(32) DEFAULT NULL COMMENT '目的省份/区域（历史字段名兼容）',
     `current_node` VARCHAR(32) NOT NULL DEFAULT 'CREATED' COMMENT '当前物流节点（LogisticsNode.codeEn）',
     `channel_id` BIGINT DEFAULT NULL COMMENT '物流渠道ID(carrier_channel.id)',
     `carrier_id` BIGINT DEFAULT NULL COMMENT '承运商ID(carrier.id)',
@@ -188,9 +188,9 @@ CREATE TABLE `unsubscribe` (
 -- 8. 初始化异常知识库数据
 -- -----------------------------------------------------------
 INSERT INTO `anomaly_knowledge` (`status_code`, `type`, `description`, `avg_duration_hours`, `suggestion`) VALUES
-('CUS-1102', 'customs_delay', '海关抽检，包裹在目的国海关停留', 48, '1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知'),
-('CUS-1105', 'customs_delay', '清关文件缺失，需补充材料', 72, '1.联系商家补充材料 2.通知买家 3.跟进清关进度'),
-('EXP-0051', 'lost', '国际运输途中丢件', 0, '1.联系物流商核实 2.创建丢件工单 3.建议退款'),
+('CUS-1102', 'customs_delay', '分拨中心抽检，包裹在中转分拨停留', 48, '1.联系物流商核实 2.通知买家预计延误时间 3.超过72h建议补发安抚通知'),
+('CUS-1105', 'customs_delay', '分拨信息缺失，需补充材料', 72, '1.联系商家补充材料 2.通知买家 3.跟进分拨进度'),
+('EXP-0051', 'lost', '干线运输途中丢件', 0, '1.联系物流商核实 2.创建丢件工单 3.建议退款'),
 ('EXP-0062', 'returned', '包裹退回发件地', 0, '1.核实退回原因 2.通知买家 3.跟进退款'),
 ('EXP-0071', 'delivery_failed', '本地派送失败（买家不在家）', 24, '1.联系买家预约派送时间 2.重新安排派送');
 

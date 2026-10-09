@@ -27,7 +27,7 @@ ON DUPLICATE KEY UPDATE `merchant_name` = VALUES(`merchant_name`), `status` = 1;
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `carrier` (`id`, `carrier_code`, `carrier_name`, `type`, `country`, `status`) VALUES
 (1, 'CARGOWAY', '中欧班列承运有限公司', 'rail', 'CN', 1),
-(2, 'AIRGO',   '环球国际空运',           'air',  'CN', 1),
+(2, 'AIRGO',   '华东航空快运',           'air',  'CN', 1),
 (3, 'SEAGO',   '远洋集运物流',           'sea',  'CN', 1)
 ON DUPLICATE KEY UPDATE `carrier_name` = VALUES(`carrier_name`), `status` = 1;
 
@@ -89,7 +89,7 @@ ON DUPLICATE KEY UPDATE `price` = VALUES(`price`), `status` = 1;
 -- 6. 发货仓库
 -- -----------------------------------------------------------
 INSERT IGNORE INTO `warehouse` (`id`, `warehouse_code`, `warehouse_name`, `country`, `city`, `address`, `status`) VALUES
-(1, 'WH-SZ', '深圳仓', 'CN', '深圳', '宝安区福永街道国际物流园A区', 1),
+(1, 'WH-SZ', '深圳仓', 'CN', '深圳', '宝安区福永街道华南物流园A区', 1),
 (2, 'WH-SH', '上海仓', 'CN', '上海', '青浦区华新镇仓储基地B栋', 1)
 ON DUPLICATE KEY UPDATE `warehouse_name` = VALUES(`warehouse_name`), `status` = 1;
 
@@ -225,8 +225,8 @@ ON DUPLICATE KEY UPDATE `freight_cost` = VALUES(`freight_cost`);
 UPDATE `workorder` SET `liability`='carrier', `claim_amount`=0, `compensation_amount`=0, `currency`='CNY', `sla_breach`=1 WHERE `order_no`='OMT-SEED-0007' AND `liability` IS NULL;
 UPDATE `workorder` SET `liability`='carrier', `claim_amount`=420.00, `compensation_amount`=420.00, `currency`='CNY', `sla_breach`=1, `resolution`='丢失理赔已赔付', `resolved_at`=NOW() WHERE `order_no`='OMT-SEED-0015' AND `liability` IS NULL;
 UPDATE `workorder` SET `liability`='merchant', `claim_amount`=120.00, `compensation_amount`=0, `currency`='CNY', `sla_breach`=0, `resolution`='商家提供错误地址，改派中' WHERE `order_no`='OMT-SEED-0010' AND `liability` IS NULL;
-UPDATE `workorder` SET `liability`='platform', `claim_amount`=150.00, `compensation_amount`=50.00, `currency`='CNY', `sla_breach`=1, `resolution`='清关延误平台补偿' WHERE `order_no`='OMT-SEED-0016' AND `liability` IS NULL;
+UPDATE `workorder` SET `liability`='platform', `claim_amount`=150.00, `compensation_amount`=50.00, `currency`='CNY', `sla_breach`=1, `resolution`='中转延误平台补偿' WHERE `order_no`='OMT-SEED-0016' AND `liability` IS NULL;
 
--- 新增 SLA 违约工单（OMT-TMS-SEED-0005 清关滞留超承诺时效）
+-- 新增 SLA 违约工单（OMT-TMS-SEED-0005 分拨滞留超承诺时效）
 INSERT IGNORE INTO `workorder` (`order_no`, `type`, `level`, `description`, `status`, `liability`, `claim_amount`, `compensation_amount`, `sla_breach`, `currency`) VALUES
-('OMT-TMS-SEED-0005', 'sla_breach', 'P1', 'SLA 违约：清关滞留超过承诺时效', 'OPEN', NULL, 0, 0, 1, 'CNY');
+('OMT-TMS-SEED-0005', 'sla_breach', 'P1', 'SLA 违约：分拨滞留超过承诺时效', 'OPEN', NULL, 0, 0, 1, 'CNY');

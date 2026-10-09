@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS `carrier` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='承运商主数据';
 
 -- -----------------------------------------------------------
--- 3. 物流渠道（承运商 × 目的国 × 时效）
+-- 3. 物流渠道（承运商 × 目的区域 × 时效）
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `carrier_channel` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `carrier_channel` (
     `channel_code` VARCHAR(64) NOT NULL COMMENT '渠道编码',
     `channel_name` VARCHAR(128) NOT NULL COMMENT '渠道名称',
     `type` VARCHAR(16) NOT NULL COMMENT '运输方式:rail/air/sea/express',
-    `dest_country` VARCHAR(8) NOT NULL COMMENT '目的国(RU/US/BR/DE)',
+    `dest_country` VARCHAR(8) NOT NULL COMMENT '目的省份/区域（历史字段名兼容）',
     `transit_days_min` INT NOT NULL DEFAULT 1 COMMENT 'SLA最小时效(天)',
     `transit_days_max` INT NOT NULL DEFAULT 10 COMMENT 'SLA最大时效(天)',
     `tracking_prefix` VARCHAR(8) DEFAULT NULL COMMENT 'tracking_no前缀',
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `carrier_channel` (
     UNIQUE KEY `uk_channel_code` (`channel_code`),
     KEY `idx_carrier_id` (`carrier_id`),
     KEY `idx_dest_country` (`dest_country`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流渠道(承运人×目的国×时效)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流渠道(承运人×目的区域×时效)';
 
 -- -----------------------------------------------------------
 -- 4. 运费价卡（渠道 × 区域 × 重量段）
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `carrier_channel` (
 CREATE TABLE IF NOT EXISTS `carrier_rate` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
     `channel_id` BIGINT NOT NULL COMMENT '渠道ID',
-    `zone` VARCHAR(16) NOT NULL DEFAULT 'DEFAULT' COMMENT '区域(目的国/分区),DEFAULT=渠道全域',
+    `zone` VARCHAR(16) NOT NULL DEFAULT 'DEFAULT' COMMENT '区域(目的省份/分区),DEFAULT=渠道全域',
     `min_weight_kg` DECIMAL(10,3) NOT NULL COMMENT '重量段下限',
     `max_weight_kg` DECIMAL(10,3) DEFAULT NULL COMMENT '重量段上限(NULL=开放上限)',
     `mode` VARCHAR(20) NOT NULL COMMENT '计费方式:PER_KG单价 | FIRST_CONTINUED首续重',
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `product` (
     `merchant_id` BIGINT NOT NULL COMMENT '商家ID',
     `sku` VARCHAR(64) NOT NULL COMMENT 'SKU编码',
     `name` VARCHAR(256) NOT NULL COMMENT '商品名称',
-    `hs_code` VARCHAR(32) DEFAULT NULL COMMENT '海关HS编码',
+    `hs_code` VARCHAR(32) DEFAULT NULL COMMENT '商品监管编码（历史字段名兼容）',
     `declared_value` DECIMAL(12,2) DEFAULT 0 COMMENT '单件申报价值',
     `currency` VARCHAR(8) DEFAULT 'CNY' COMMENT '申报币种',
     `weight_kg` DECIMAL(10,3) NOT NULL COMMENT '单件实重kg',
