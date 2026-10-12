@@ -33,7 +33,9 @@ jobs:
   deployment-smoke:
     name: Docker deployment smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 40 -> 45：除原有服务外，现在还多一个 Nacos 容器（standalone 冷启动约 90s，
+    # 见 compose.infra.yml 的 healthcheck start_period）与前端的 npm ci + vite 构建。
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - name: Set up JDK 21

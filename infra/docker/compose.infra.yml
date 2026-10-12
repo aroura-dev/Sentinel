@@ -6,8 +6,8 @@ name: sentinelms
 #
 # 端口暴露面（安全关键）：
 #   本文件是**生产安全形态** —— 只发布 8080(网关) 与 5175(演示台)。
-#   业务服务(8081-8084)、MySQL(33061-33064)、Redis(6381)、Kafka(29092)、ZooKeeper(2181)
-#   一律不发布到宿主机，只走 compose 内部网络。
+#   业务服务(8081-8084)、MySQL(33061-33064)、Redis(6381)、Kafka(29092)、ZooKeeper(2181)、
+#   Nacos 控制台(8848) 一律不发布到宿主机，只走 compose 内部网络。
 #
 #   原因：下游服务无条件信任 X-User-Name / X-User-Role 头（见 docs/ARCHITECTURE.md §6.5），
 #   一旦业务服务端口对宿主可达，任何人伪造这两个头即可绕过网关鉴权；
@@ -67,6 +67,39 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+  # ---------- 注册中心 + 配置中心 ----------
+  # Nacos 同时承担两职：服务注册发现（网关 lb:// 解析）与配置中心（spring.config.import）。
+  # 控制台端口 8848 一律不发布 —— 与业务服务同理，控制台能改配置、下线实例，
+  # 对宿主可达就等于把集群控制权交出去。本机要看控制台请叠加 compose.dev.yml（只绑回环）。
+  # 存储用内嵌 derby：不必新增第 5 个 MySQL，也不必维护 nacos 库 schema。
+  # 配置中心在本设计中是**覆盖层**（本地 yml 保留默认值 + import 用 optional:），
+  # 故 derby 随容器丢失不致命。加卷只是让配置在容器重建后仍在，避免反复播种。
+  nacos:
+    image: nacos/nacos-server:v2.2.0          # 与 SCA 2021.0.6.2 传递的 nacos-client 2.2.0 对齐
+    container_name: sentinelms-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+      # 控制台不对宿主发布 + 仅 compose 内网可达，沿用本栈既有的"网络即信任边界"模型。
+      NACOS_AUTH_ENABLE: "false"
+      TZ: Asia/Shanghai
+    volumes:
+      - nacos-data:/home/nacos/data
+    healthcheck:
+      # readiness 端点只在服务真正就绪后才返回 200；仅探测端口会过早放行。
+      # start_period 给足 120s：实测 Nacos standalone（内嵌 derby 初始化）要 ~90s 才就绪，
+      # 设小了会在就绪前的窗口里被判 unhealthy，进而让 depends_on 它的服务启动失败
+      # （compose 报 "dependency failed to start: container sentinelms-nacos is unhealthy"）。
+      test: ["CMD", "curl", "-fsS", "http://localhost:8848/nacos/v1/console/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
   mysql-auth:
     image: mysql:8.0
@@ -171,6 +204,7 @@ services:
     depends_on:
       mysql-auth: {condition: service_healthy}
       redis: {condition: service_healthy}
+      nacos: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-auth:3306/sentinel_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: sentinel_auth
@@ -178,8 +212,8 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置}
-      # 验证码短信走真实引擎(msg-service)
-      SMS_ENGINE_MSG_URL: http://msg-service:8082
+      # 验证码短信走真实引擎(msg-service)；目标地址由 AuthMsgClient 的 Feign + Nacos 发现解析，
+      # 不再注入 SMS_ENGINE_MSG_URL。
       SMS_ENGINE_TEMPLATE_ID: "1011"
       # 验证码不回传接口（从 Redis/短信查收，手动输入）；本地联调需要时临时置 true
       SMS_DEV_RETURN_CODE: "false"
@@ -203,6 +237,7 @@ services:
       mysql-msg: {condition: service_healthy}
       redis: {condition: service_healthy}
       kafka: {condition: service_healthy}
+      nacos: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-msg:3306/sentinel_msg?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: sentinel_msg
@@ -213,7 +248,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # 投递回执要回调 logistics 的 /internal/**，需要服务签名（同 logistics 调 agent 那套）
       SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
-      SERVICE_LOGISTICS_URL: http://logistics-service:8083
+      # 回执回调目标不再注入：LogisticsReceiptClient 走 Feign + Nacos 服务发现。
       # 原先只写在 jar 内的 local.properties，改一次要重新打包
       DEDUPLICATION_RULE: ${DEDUPLICATION_RULE:-{"deduplication_10":{"num":1,"time":300},"deduplication_20":{"num":5}}}
       FLOW_CONTROL_RULE: ${FLOW_CONTROL_RULE:-{"flow_control_40":1}}
@@ -228,12 +263,13 @@ services:
     # 不等待 agent/msg：调它们失败会降级（默认文案 / 标 FAILED），不是硬依赖。
     depends_on:
       mysql-logistics: {condition: service_healthy}
+      nacos: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-logistics:3306/sentinel_logistics?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: sentinel_logistics
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?MYSQL_APP_PASSWORD 未设置}
-      SERVICE_AGENT_URL: http://agent-service:8084
-      SERVICE_MSG_URL: http://msg-service:8082
+      # 下游地址不再注入：AgentClient/MsgClient 走 Feign + Nacos 服务发现。
+      # 退回静态直连时把 SERVICE_AGENT_URL / SERVICE_MSG_URL 加回来即可（不必重建镜像）。
       # 业务参数外置：这些值原先只写在 application.yml 里，改一次要重新构建镜像。
       NOTIFY_TEMPLATE_ID: ${NOTIFY_TEMPLATE_ID:-3}
       NOTIFY_DEDUP_HOURS: ${NOTIFY_DEDUP_HOURS:-24}
@@ -250,6 +286,7 @@ services:
     restart: unless-stopped
     depends_on:
       mysql-agent: {condition: service_healthy}
+      nacos: {condition: service_healthy}
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-agent:3306/sentinel_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: sentinel_agent
@@ -264,8 +301,9 @@ services:
     container_name: sentinelms-gateway
     restart: unless-stopped
     environment:
-      AUTH_URI: http://auth-service:8081
-      LOGISTICS_URI: http://logistics-service:8083
+      # 路由 uri 走 lb://<serviceId>（见 gateway/application.yml），由 Nacos 发现解析实例，
+      # 故这里不再注入 AUTH_URI / LOGISTICS_URI 静态地址。
+      # 需要退回静态直连时再把它们加回来即可（不需要重建镜像）。
       SENTINEL_INTERNAL_SECRET: ${SENTINEL_INTERNAL_SECRET:?SENTINEL_INTERNAL_SECRET 未设置}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -279,12 +317,22 @@ services:
       redis: {condition: service_healthy}
       auth-service: {condition: service_healthy}
       logistics-service: {condition: service_healthy}
+      nacos: {condition: service_healthy}
 
   frontend:
-    build: {context: ../.., dockerfile: infra/docker/Dockerfile.frontend}
+    # 前端镜像由 frontend-vue/Dockerfile 提供（多阶段：node 构建 → nginx 托管），
+    # 所以构建上下文是 frontend-vue/ 本身，而不是仓库根。
+    # 原先指向 infra/docker/Dockerfile.frontend —— 那是单体时代的遗留（COPY frontend/ 与
+    # node server.js 都已不存在），会让 compose up 在后端服务全部起好之后才失败。
+    build: {context: ../../frontend-vue, dockerfile: Dockerfile}
     container_name: sentinelms-frontend
     restart: unless-stopped
-    ports: ["5175:5175"]
+    # 对外默认仍是文档里的 5175（README/docs/up.sh 都按它写），容器内 nginx 保持前端模块
+    # 自己的 5173（见 frontend-vue/nginx.conf），在 compose 边界做一次转换。
+    # 发布端口参数化：Windows 下 Hyper-V/WSL 会保留成段端口（本机实测 5161-5260 被排除，
+    # 5173/5175 都在其中，绑不上），此时在 .env 里设 FRONTEND_PORT=<可用端口> 即可，
+    # 无需改本文件或文档。
+    ports: ["${FRONTEND_PORT:-5175}:5173"]
     depends_on:
       gateway: {condition: service_started}
 
@@ -319,4 +367,5 @@ volumes:
   msg-mysql-data:
   logistics-mysql-data:
   agent-mysql-data:
+  nacos-data:
   prometheus-data:

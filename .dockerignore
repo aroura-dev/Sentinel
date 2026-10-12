@@ -6,7 +6,10 @@
 .env.*
 !.env.example
 **/node_modules
-**/dist
+# 只排除前端构建产物。原先是 **/dist，会把项目根的 dist/ 也一并排除 ——
+# 而那正是 up.sh 与 CI 暂存 5 个服务 jar、Dockerfile 用 COPY dist/*.jar 取的目录，
+# 排除后所有后端镜像构建都会以 "…/dist/xxx.jar: not found" 失败。
+frontend-vue/dist
 **/*.log
 microservices
 doc/uml
