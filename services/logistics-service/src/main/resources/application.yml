@@ -37,6 +37,21 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # 配置中心：optional: 是红线 —— 拿不到配置也必须能启动。
+  # 必须与 nacos-config starter 同时存在（SCA import-check 会因缺 spring.config.import 直接启动失败）。
+  config:
+    import:
+      - optional:nacos:logistics-service.yml
+      - optional:nacos:sentinel-common.yml
+  # 服务注册发现：注册到 Nacos，供网关 lb://logistics-service 与 msg 的回执调用解析实例。
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+      config:
+        refresh-enabled: true
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
   application:
     name: logistics-service
   datasource:
@@ -75,10 +90,30 @@ notify:
     # 单轮最多处理条数，避免一轮把下游打满
     batch-size: 50
 
-# 跨服务 REST 目标（本机联调；容器化后改服务名）
-service:
-  agent-url: http://127.0.0.1:8084
-  msg-url: http://127.0.0.1:8082
+# 跨服务调用目标改为服务发现，不再在此写死地址：
+# 两个客户端的 url 占位符是 ${service.agent-url:} / ${service.msg-url:}，留空即走
+# Nacos + LoadBalancer 解析。原先这里的 http://127.0.0.1:8084/8082 在容器里根本不可达
+# （那是宿主机视角），只适合本机直跑 jar 联调；需要退回静态直连时再把它们加回来。
+
+# Feign 出站超时：对齐改造前 RestConfig 的 3s(connect)/8s(read)。
+# 不要开 feign.okhttp.enabled —— 那会换掉 Feign 默认 client，让超时/连接行为漂移。
+# 也不配重试：重试由 NotificationRetryTask + 状态机负责（Feign 默认 Retryer.NEVER_RETRY）。
+#
+# ⚠️ 本服务**刻意不启用 Feign 熔断**（不要在这里加 feign.circuitbreaker.enabled: true）。
+# 两重理由：
+#  1. 语义冲突：dispatch() 用 catch(Exception) 把一切失败收敛成 scheduleRetry()。
+#     断路器 OPEN 时抛的 CallNotPermittedException 会被当成"下游拒绝受理"，
+#     于是在**从未真正探测下游**的情况下逐次消耗 retry_count ——
+#     把本可恢复的通知推成终态 FAILED（与熔断"给下游恢复机会"的本意正好相反）。
+#  2. 开关是服务级的：本服务有 MsgClient + AgentClient 两个客户端，无法只给其中一个加。
+# 本层的韧性由 DB 状态机（SENT/PENDING/SKIPPED/FAILED/DISPATCHED）
+# + NotificationRetryTask（原子认领 claimForRetry + 指数退避 + 60s 租约）负责。
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 8000
 
 # 日志格式：把 MDC 里的 requestId 打出来，使同一请求跨服务的日志可以按 ID 捞取。
 logging:

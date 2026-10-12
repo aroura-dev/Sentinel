@@ -1,75 +1,53 @@
 package com.aroura.logistics.client;
 
-import java.util.Collections;
-import java.util.Map;
+import com.aroura.sentinel.ms.web.feign.FeignInternalInterceptor;
+import com.aroura.sentinel.service.api.domain.SendRequest;
+import com.aroura.sentinel.service.api.domain.SendResponse;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
-import com.aroura.sentinel.ms.web.RequestIdFilter;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import feign.RequestInterceptor;
 
 /**
- * msg-service 客户端：投递消息（复用其公开 POST /send，模板按 id）。
- * 仅负责把通知送进消息引擎，是否真实下发/落 sms_record 由 msg-service 负责。
+ * msg-service 客户端：投递消息（复用其公开 {@code POST /send}，模板按 id）。
+ * <p>
+ * 只负责把通知送进消息引擎；是否真实下发、是否落 sms_record 由 msg-service 负责。
+ * 请求/响应复用 {@code sentinel-service-api} 的领域契约（SendRequest/SendResponse），
+ * 不再手拼 Map + JSON 解析。
+ *
+ * <h3>url 占位符</h3>
+ * {@code ${service.msg-url:}} 默认留空 —— 有值走静态直连（容器化前的联调），
+ * 为空则走 Nacos 服务发现 + 负载均衡。切回退只需改 env，不必重建镜像。
  *
  * @author sentinel-ms
  */
-@Component
-public class MsgClient {
-
-    private static final Logger log = LoggerFactory.getLogger(MsgClient.class);
-
-    private final RestTemplate restTemplate;
-    private final String msgUrl;
-
-    public MsgClient(RestTemplate restTemplate, @Value("${service.msg-url}") String msgUrl) {
-        this.restTemplate = restTemplate;
-        this.msgUrl = msgUrl;
-    }
+@FeignClient(name = "msg-service",
+        url = "${service.msg-url:}",
+        configuration = MsgClient.Config.class)
+public interface MsgClient {
 
     /**
-     * 提交发送
+     * 提交发送。
      *
-     * @return 是否被引擎受理（response.code == "0"）
+     * @return msg-service 的受理结果；{@code code == "0"} 表示已被受理
      */
-    public boolean send(long templateId, String bizId, String receiver, String orderNo) {
-        Map<String, Object> messageParam = new java.util.HashMap<>(4);
-        messageParam.put("bizId", bizId);
-        messageParam.put("receiver", receiver);
-        messageParam.put("variables", Collections.singletonMap("orderNo", orderNo));
+    @PostMapping("/send")
+    SendResponse send(@RequestBody SendRequest request);
 
-        Map<String, Object> req = new java.util.HashMap<>(4);
-        req.put("code", "send");
-        req.put("messageTemplateId", templateId);
-        req.put("messageParam", messageParam);
-        try {
-            // 透传请求关联 ID，让 msg-service 侧的日志能与本次请求对上
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            String requestId = MDC.get(RequestIdFilter.MDC_KEY);
-            if (requestId != null && !requestId.isEmpty()) {
-                headers.set(RequestIdFilter.HDR_REQUEST_ID, requestId);
-            }
-            String resp = restTemplate.postForObject(msgUrl + "/send",
-                    new HttpEntity<>(req, headers), String.class);
-            if (resp == null) {
-                return false;
-            }
-            JSONObject json = JSON.parseObject(resp);
-            String code = json == null ? null : json.getString("code");
-            return "0".equals(code);
-        } catch (Exception e) {
-            log.warn("[MsgClient] 提交发送失败 templateId={} orderNo={} err={}", templateId, orderNo, e.getMessage());
-            return false;
+    /**
+     * 只透传 X-Request-Id，不带服务签名 —— {@code /send} 是设计上无鉴权的公开接口。
+     * <p>
+     * 刻意不加 {@code @Configuration}：本类会被 {@code @ComponentScan} 扫到
+     * （服务的扫描根覆盖 {@code com.aroura.sentinel.ms.web}），加了就会变成全局 bean，
+     * 把不签名的拦截器套到该服务所有 Feign 客户端上。
+     */
+    class Config {
+        @Bean
+        RequestInterceptor requestIdInterceptor() {
+            return new FeignInternalInterceptor(null, null);
         }
     }
 }

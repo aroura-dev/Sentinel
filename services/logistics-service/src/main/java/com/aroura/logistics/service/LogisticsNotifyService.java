@@ -1,18 +1,25 @@
 package com.aroura.logistics.service;
 
 import java.sql.Timestamp;
+import java.util.Collections;
 import java.util.Map;
 
 import com.aroura.sentinel.logistics.context.SentinelContext;
 import com.aroura.sentinel.logistics.dao.LogisticsDao;
 import com.aroura.sentinel.logistics.dao.NotificationDao;
 import com.aroura.logistics.client.AgentClient;
+import com.aroura.logistics.client.AgentGenerateRequest;
+import com.aroura.logistics.client.AgentGenerateResponse;
 import com.aroura.logistics.client.MsgClient;
+import com.aroura.sentinel.service.api.domain.MessageParam;
+import com.aroura.sentinel.service.api.domain.SendRequest;
+import com.aroura.sentinel.service.api.domain.SendResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Service;
 
 /**
@@ -33,7 +40,12 @@ import org.springframework.stereotype.Service;
  *
  * @author sentinel-ms
  */
+// 配置热刷新：本类持有 notify.dedup-hours / notify.dispatch.* / notify.retry.max-attempts
+// 与 base-backoff-seconds —— 它们是 Nacos README 所列"可热调业务 knob"的主力。
+// @RefreshScope 产生 CGLIB 作用域代理（本类无接口），@Autowired 接线无需改动。
+// 与 NotificationRetryTask 同批刷新，投递与补偿两侧的阈值才不会出现"一半新一半旧"的窗口。
 @Service
+@RefreshScope
 public class LogisticsNotifyService {
 
     private static final Logger log = LoggerFactory.getLogger(LogisticsNotifyService.class);
@@ -82,7 +94,7 @@ public class LogisticsNotifyService {
         SentinelContext ctx = SentinelContext.of(orderNo, node, language, role);
         String traceId = ctx.toBizId();
 
-        String content = agentClient.generate(orderNo, node, language, productInfo, traceId);
+        String content = generateContent(orderNo, node, language, productInfo, traceId);
         if (content == null || content.trim().isEmpty()) {
             content = "您的订单 " + orderNo + " 物流状态已更新为：" + node;
         }
@@ -158,6 +170,28 @@ public class LogisticsNotifyService {
         return null;
     }
 
+    /**
+     * 调 agent-service 生成通知文案。
+     * <p>
+     * 失败一律降级为空串（由 {@link #send} 兜底成默认文案）：AI 文案是增强项，
+     * 拿不到不该让买家的物流通知整个断掉。降级策略放在编排层而非客户端 ——
+     * 客户端只是传输契约，重试/降级由这里和 NotificationRetryTask 统一负责。
+     */
+    private String generateContent(String orderNo, String node, String language, String productInfo, String traceId) {
+        try {
+            AgentGenerateResponse resp = agentClient.generate(
+                    new AgentGenerateRequest(orderNo, node, language, productInfo, traceId));
+            if (resp == null || resp.getData() == null) {
+                return "";
+            }
+            String content = resp.getData().getContent();
+            return content == null ? "" : content;
+        } catch (Exception e) {
+            log.warn("[Notify] 生成文案失败，降级默认 orderNo={} node={} err={}", orderNo, node, e.getMessage());
+            return "";
+        }
+    }
+
     private String buildProductInfo(Map<String, Object> order) {
         String dest = order.get("destination_country") == null ? "" : String.valueOf(order.get("destination_country"));
         String merchant = order.get("merchant_name") == null ? "" : String.valueOf(order.get("merchant_name"));
@@ -172,6 +206,13 @@ public class LogisticsNotifyService {
      * <p>
      * 「本就不该发」必须显式落成 SKIPPED，不能留在 PENDING ——
      * 否则补偿任务无法区分它和「落库后进程崩了」，会把无接收方的记录反复重投。
+     * <p>
+     * <b>本类（及其调用的两个 Feign 客户端）刻意不启用熔断</b>：下面的 {@code catch (Exception)}
+     * 会把包括断路器 {@code CallNotPermittedException} 在内的一切失败都收敛成
+     * {@link #scheduleRetry}。那等于在**从未真正探测下游**的情况下消耗一次重试额度，
+     * 把本可恢复的通知推成终态 FAILED —— 与熔断的本意相反。
+     * 失败计数/退避/终态统一由本状态机 + {@code NotificationRetryTask} 负责，
+     * 这是这一层正确的唯一韧性机制。详见本服务 application.yml 的 feign 块。
      */
     private void dispatch(long id, String buyerId, String orderNo, SentinelContext ctx) {
         if (id <= 0) {
@@ -190,7 +231,14 @@ public class LogisticsNotifyService {
             return;
         }
         try {
-            boolean accepted = msgClient.send(dispatchTemplateId, ctx.toBizId(), buyerId, orderNo);
+            SendResponse resp = msgClient.send(new SendRequest()
+                    .setCode("send")
+                    .setMessageTemplateId(dispatchTemplateId)
+                    .setMessageParam(new MessageParam()
+                            .setBizId(ctx.toBizId())
+                            .setReceiver(buyerId)
+                            .setVariables(Collections.singletonMap("orderNo", orderNo))));
+            boolean accepted = resp != null && "0".equals(resp.getCode());
             if (accepted) {
                 notificationDao.markSent(id);
                 log.info("[NotifyDispatch] id={} orderNo={} submitStatus=SENT", id, orderNo);

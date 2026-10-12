@@ -5,9 +5,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.aroura.logistics.client.AgentClient;
+import com.aroura.logistics.client.AgentGenerateRequest;
+import com.aroura.logistics.client.AgentGenerateResponse;
 import com.aroura.logistics.client.MsgClient;
 import com.aroura.sentinel.logistics.dao.LogisticsDao;
 import com.aroura.sentinel.logistics.dao.NotificationDao;
+import com.aroura.sentinel.service.api.domain.SendRequest;
+import com.aroura.sentinel.service.api.domain.SendResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +39,9 @@ import static org.mockito.Mockito.when;
  * 这里盯的是<b>状态语义</b>：SENT / SKIPPED / FAILED 三者不能混。
  * 尤其是「没有接收方」必须落成 SKIPPED —— 若留在 PENDING，补偿任务会把它当成
  * 崩溃遗留的记录反复重投。
+ * <p>
+ * 客户端已改为 Feign 接口（@FeignClient）：mock 的是接口，入参从散装参数变成
+ * SendRequest / AgentGenerateRequest，断言的状态语义不变。
  */
 @ExtendWith(MockitoExtension.class)
 class LogisticsNotifyServiceTest {
@@ -63,6 +70,20 @@ class LogisticsNotifyServiceTest {
         ReflectionTestUtils.setField(notifyService, "baseBackoffSeconds", 30L);
     }
 
+    /** agent 正常返回时只用到 data.content。 */
+    private static AgentGenerateResponse agentResp(String content) {
+        AgentGenerateResponse resp = new AgentGenerateResponse();
+        AgentGenerateResponse.Payload data = new AgentGenerateResponse.Payload();
+        data.setContent(content);
+        resp.setData(data);
+        return resp;
+    }
+
+    /** msg-service 受理与否只看顶层 code，"0" 为受理。 */
+    private static SendResponse sendResp(String code) {
+        return new SendResponse().setCode(code);
+    }
+
     /** 订单存在且带合法手机号。 */
     private void givenOrderWithPhone(String phone) {
         Map<String, Object> order = new HashMap<>(4);
@@ -70,8 +91,8 @@ class LogisticsNotifyServiceTest {
         order.put("buyer_id", "王芳");
         order.put("buyer_language", "zh");
         when(logisticsDao.findOrderByNo(ORDER_NO)).thenReturn(order);
-        when(agentClient.generate(anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("您的订单已更新");
+        when(agentClient.generate(any(AgentGenerateRequest.class)))
+                .thenReturn(agentResp("您的订单已更新"));
         when(notificationDao.insert(anyString(), anyString(), anyString(), anyString(),
                 anyString(), anyString(), anyString(), anyString())).thenReturn(ROW_ID);
     }
@@ -79,7 +100,7 @@ class LogisticsNotifyServiceTest {
     @Test
     void 投递成功应标记SENT() {
         givenOrderWithPhone("13800000001");
-        when(msgClient.send(anyLong(), anyString(), anyString(), anyString())).thenReturn(true);
+        when(msgClient.send(any(SendRequest.class))).thenReturn(sendResp("0"));
 
         notifyService.send(ORDER_NO, "IN_TRANSIT", "buyer", "sms");
 
@@ -92,7 +113,7 @@ class LogisticsNotifyServiceTest {
     @Test
     void 投递失败应记录原因并安排退避() {
         givenOrderWithPhone("13800000001");
-        when(msgClient.send(anyLong(), anyString(), anyString(), anyString())).thenReturn(false);
+        when(msgClient.send(any(SendRequest.class))).thenReturn(sendResp("A0001"));
         when(notificationDao.queryById(ROW_ID)).thenReturn(row(0));
 
         notifyService.send(ORDER_NO, "IN_TRANSIT", "buyer", "sms");
@@ -107,7 +128,7 @@ class LogisticsNotifyServiceTest {
     @Test
     void 达到重试上限应停止补偿() {
         givenOrderWithPhone("13800000001");
-        when(msgClient.send(anyLong(), anyString(), anyString(), anyString())).thenReturn(false);
+        when(msgClient.send(any(SendRequest.class))).thenReturn(sendResp("A0001"));
         when(notificationDao.queryById(ROW_ID)).thenReturn(row(4));  // 已失败 4 次，maxAttempts=5
 
         notifyService.send(ORDER_NO, "IN_TRANSIT", "buyer", "sms");
@@ -124,15 +145,14 @@ class LogisticsNotifyServiceTest {
         order.put("buyer_phone", "");
         order.put("buyer_id", null);
         when(logisticsDao.findOrderByNo(ORDER_NO)).thenReturn(order);
-        when(agentClient.generate(anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("文案");
+        when(agentClient.generate(any(AgentGenerateRequest.class))).thenReturn(agentResp("文案"));
         when(notificationDao.insert(anyString(), anyString(), anyString(), anyString(),
                 anyString(), anyString(), anyString(), anyString())).thenReturn(ROW_ID);
 
         notifyService.send(ORDER_NO, "IN_TRANSIT", "buyer", "sms");
 
         verify(notificationDao).markSkipped(eq(ROW_ID), anyString());
-        verify(msgClient, never()).send(anyLong(), anyString(), anyString(), anyString());
+        verify(msgClient, never()).send(any(SendRequest.class));
     }
 
     /** 去重命中时不应再落一行 —— 否则每次调用都会新增记录。 */
@@ -152,7 +172,7 @@ class LogisticsNotifyServiceTest {
         order.put("buyer_phone", "13900000002");
         order.put("buyer_id", "李四");
         when(logisticsDao.findOrderByNo(ORDER_NO)).thenReturn(order);
-        when(msgClient.send(eq(3L), anyString(), eq("13900000002"), eq(ORDER_NO))).thenReturn(true);
+        when(msgClient.send(any(SendRequest.class))).thenReturn(sendResp("0"));
 
         Map<String, Object> failed = row(1);
         failed.put("order_no", ORDER_NO);

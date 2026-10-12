@@ -2,6 +2,7 @@ package com.aroura.logistics;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -22,6 +23,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @author sentinel-ms
  */
 @EnableScheduling
+// Feign 客户端（调 agent-service / msg-service）。只扫本服务的 client 包，
+// 全包扫描会把共享模块里的接口也当成客户端处理。
+@EnableFeignClients(basePackages = "com.aroura.logistics.client")
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.aroura.sentinel", "com.aroura.logistics"}, excludeFilters = {
         @ComponentScan.Filter(type = FilterType.REGEX, pattern =

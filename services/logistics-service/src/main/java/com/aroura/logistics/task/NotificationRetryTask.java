@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,14 +28,19 @@ import org.springframework.stereotype.Component;
  * <p>
  * 在这之前两者都无人处理：投递失败的通知永久丢失，卡住的 PENDING 也永远不回收。
  *
- * <h3>已知限制</h3>
- * 未做分布式互斥，按单实例部署设计。多实例时同一个 FAILED 记录会被多个进程同时捞起、
- * 造成重复投递 —— 与 msg-service 消费端去重可以部分兜底，但正确做法是给领取动作加
- * 原子认领（{@code UPDATE ... WHERE status='FAILED'}）或引入分布式锁。属于多实例改造的一部分。
+ * <h3>多实例安全</h3>
+ * 靠**原子认领**（{@code claimForRetry}：单条 {@code UPDATE ... WHERE status='FAILED' AND retry_count<n}）
+ * + 认领租约实现，不需要分布式锁：只有一个实例能认领成功，其余自然跳过；
+ * 认领方崩溃则租约到期后记录自动可重领，无需额外清理。
  *
  * @author sentinel-ms
  */
+// 配置热刷新：见 LogisticsNotifyService 的同类注解。
+// 注意 @RefreshScope **不能**让 notify.retry.scan-interval-ms / initial-delay-ms 热生效 ——
+// @Scheduled 的 cron/fixedDelay 在启动时一次性注册进 ScheduledTaskRegistrar；
+// 加这个只让方法体内现读的 @Value（batch-size / max-attempts / lease 等）跟随刷新。
 @Component
+@RefreshScope
 public class NotificationRetryTask {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationRetryTask.class);

@@ -27,6 +27,32 @@
             <groupId>com.aroura.sentinel</groupId>
             <artifactId>sentinel-ms-web</artifactId>
         </dependency>
+        <!-- 复用发送域契约 DTO（SendRequest/SendResponse）：通知派发经 Feign 调 msg-service。 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-service-api</artifactId>
+        </dependency>
+
+        <!-- ===== 服务治理：注册发现 + 配置中心 + 声明式调用 ===== -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- 必须显式引入：openfeign starter **不**传递带入 loadbalancer（SC 2021.0.x）。
+             缺了它，url 留空的 @FeignClient 会在启动时抛
+             "No Feign Client for loadBalancing defined." 直接启动失败。 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
