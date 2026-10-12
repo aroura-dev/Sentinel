@@ -4,7 +4,6 @@ import cn.hutool.core.text.StrPool;
 import cn.hutool.setting.dialect.Props;
 import com.ctrip.framework.apollo.Config;
 import com.aroura.sentinel.support.service.ConfigService;
-import com.aroura.sentinel.support.utils.NacosUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -33,17 +32,11 @@ public class ConfigServiceImpl implements ConfigService {
     private Boolean enableApollo;
     @Value("${apollo.bootstrap.namespaces}")
     private String namespaces;
-    /**
-     * nacos配置
-     */
-    @Value("${sentinel.nacos.enabled}")
-    private Boolean enableNacos;
-    @Autowired
-    private NacosUtils nacosUtils;
-
 
     /**
      * Spring 环境（含环境变量与系统属性），用于覆盖打包进 jar 的本地配置。
+     * Nacos 配置中心走 spring.config.import=nacos:...，其内容会被并入这个 Environment，
+     * 因此无需在代码里单独"读 Nacos"——这里的 environment.getProperty 即可拿到。
      */
     @Autowired
     private Environment environment;
@@ -53,10 +46,8 @@ public class ConfigServiceImpl implements ConfigService {
         if (Boolean.TRUE.equals(enableApollo)) {
             Config config = com.ctrip.framework.apollo.ConfigService.getConfig(namespaces.split(StrPool.COMMA)[0]);
             return config.getProperty(key, defaultValue);
-        } else if (Boolean.TRUE.equals(enableNacos)) {
-            return nacosUtils.getProperty(key, defaultValue);
         }
-        // 本地兜底：先看 Spring 环境（环境变量 / JVM 参数），再退回 jar 内的 local.properties。
+        // 本地兜底：先看 Spring 环境（环境变量 / JVM 参数 / Nacos 导入的配置），再退回 jar 内的 local.properties。
         //
         // local.properties 是打在 jar 里的资源 —— 放在那里的值（去重规则、流控阈值、渠道权重）
         // 改一次就要重新构建并重新部署镜像，而它们恰恰是运维最需要按环境调整的东西。

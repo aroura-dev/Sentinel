@@ -103,10 +103,10 @@
             <artifactId>spring-rabbit</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.alibaba.boot</groupId>
-            <artifactId>nacos-config-spring-boot-starter</artifactId>
-        </dependency>
+        <!-- Nacos 相关能力改由 spring-cloud-alibaba 的 nacos-discovery/nacos-config 提供
+             （在各业务服务的 pom 中按需引入）。原先这里的 com.alibaba.boot:nacos-config-spring-boot-starter
+             是"非 Spring Cloud 集成"版本，会传递 nacos-client 1.4.x，与 SCA 的 2.2.x 形成双版本冲突，
+             故移除。 -->
 
         <dependency>
             <groupId>com.aliyun</groupId>
@@ -121,11 +121,6 @@
         <dependency>
             <groupId>com.github.binarywang</groupId>
             <artifactId>weixin-java-miniapp</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.github.ZhongFuCheng3y</groupId>
-            <artifactId>hades-nacos-starter</artifactId>
         </dependency>
     </dependencies>
 

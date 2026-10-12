@@ -54,6 +54,8 @@
         <!-- Sleuth 版本：Spring Cloud BOM 通过 ${spring-cloud-sleuth.version} 间接引入，
              该属性在本项目解析不到，故显式声明。3.1.x 是 2021.0.x 对应的 Sleuth 线。 -->
         <sleuth.version>3.1.9</sleuth.version>
+        <!-- Spring Cloud Alibaba：Nacos 注册发现 + 配置中心，2021.0.x 线最后一版 -->
+        <spring-cloud-alibaba.version>2021.0.6.2</spring-cloud-alibaba.version>
 
         <!-- 依赖库版本（沿用源全量） -->
         <mysql-connector-java.version>8.0.33</mysql-connector-java.version>
@@ -62,7 +64,6 @@
         <okhttp.version>4.9.2</okhttp.version>
         <fastjson2.version>2.0.60</fastjson2.version>
         <tencentcloud-sdk-java.version>3.1.510</tencentcloud-sdk-java.version>
-        <nacos-config-spring-boot-starter.version>0.2.12</nacos-config-spring-boot-starter.version>
         <apollo-client.version>2.1.0</apollo-client.version>
         <lombok.version>1.18.46</lombok.version>
         <log-record-starter.version>1.0.4.1</log-record-starter.version>
@@ -75,7 +76,6 @@
         <alipay-sdk-java.version>4.39.19.ALL</alipay-sdk-java.version>
         <alibaba-dingtalk-service-sdk.version>2.0.0</alibaba-dingtalk-service-sdk.version>
         <rocketmq-spring-boot-starter.version>2.2.2</rocketmq-spring-boot-starter.version>
-        <hades-nacos-starter.version>1.0.4</hades-nacos-starter.version>
         <langchain4j.version>0.34.0</langchain4j.version>
         <langchain4j-dashscope.version>0.34.0</langchain4j-dashscope.version>
     </properties>
@@ -94,15 +94,23 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Spring Cloud Alibaba BOM（Nacos 注册发现 + 配置中心）。
+                 必须放在 spring-cloud-dependencies **之后**：dependencyManagement 里先声明者胜，
+                 这样 spring-cloud 系依赖版本仍由 2021.0.8 锁定，不会被 SCA 传递的版本覆盖。
+                 2021.0.6.2 是 2021.0.x 线最后一个发布，按"前三位对齐 Spring Cloud"的命名规约
+                 与本项目的 2021.0.8 属同一 release train（不存在 2021.0.8.0）。 -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- 本地内部模块 -->
             <dependency>
                 <groupId>com.aroura.sentinel</groupId>
                 <artifactId>sentinel-common</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.aroura.sentinel</groupId>
-                <artifactId>sentinel-cron</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -188,12 +196,6 @@
                 <artifactId>tencentcloud-sdk-java</artifactId>
                 <version>${tencentcloud-sdk-java.version}</version>
             </dependency>
-            <!-- nacos -->
-            <dependency>
-                <groupId>com.alibaba.boot</groupId>
-                <artifactId>nacos-config-spring-boot-starter</artifactId>
-                <version>${nacos-config-spring-boot-starter.version}</version>
-            </dependency>
             <!-- apollo -->
             <dependency>
                 <groupId>com.ctrip.framework.apollo</groupId>
@@ -269,12 +271,6 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq-spring-boot-starter.version}</version>
-            </dependency>
-            <!-- hades -->
-            <dependency>
-                <groupId>io.github.ZhongFuCheng3y</groupId>
-                <artifactId>hades-nacos-starter</artifactId>
-                <version>${hades-nacos-starter.version}</version>
             </dependency>
             <!-- spring-boot-configuration-processor（版本由 spring-boot-starter-parent 管理，此处不需声明） -->
             <!-- LangChain4j + DashScope -->
