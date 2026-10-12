@@ -2,6 +2,7 @@ package com.aroura.sentinel;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * sentinel-ms 认证服务入口（独立进程 :8081）。
@@ -10,6 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * @author sentinel-ms
  */
+// Feign 客户端（验证码短信下发 msg-service）。只扫本服务的 client 包。
+@EnableFeignClients(basePackages = "com.aroura.sentinel.web.client")
 @SpringBootApplication
 public class AuthApplication {
 

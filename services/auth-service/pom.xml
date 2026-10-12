@@ -23,6 +23,42 @@
             <groupId>com.aroura.sentinel</groupId>
             <artifactId>sentinel-ms-web</artifactId>
         </dependency>
+        <!-- 复用发送域契约 DTO（SendRequest/SendResponse）：验证码短信经 Feign 调 msg-service。 -->
+        <dependency>
+            <groupId>com.aroura.sentinel</groupId>
+            <artifactId>sentinel-service-api</artifactId>
+        </dependency>
+
+        <!-- ===== 服务治理：注册发现 + 配置中心 + 声明式调用 ===== -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- 必须显式引入：openfeign starter **不**传递带入 loadbalancer（SC 2021.0.x）。
+             缺了它，url 留空的 @FeignClient 会在启动时抛
+             "No Feign Client for loadBalancing defined. Did you forget to include
+             spring-cloud-starter-loadbalancer?" 直接启动失败。 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- Feign 客户端级熔断（servlet/阻塞侧，与 reactor 版相对）。
+             本服务只有一个 @FeignClient（AuthMsgClient），故服务级开关
+             feign.circuitbreaker.enabled 无副作用 —— 见 logistics 的 feign 块注释，
+             那里有两个客户端，同样一行开关会把 MsgClient 与 AgentClient 一起套住，所以不加。 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

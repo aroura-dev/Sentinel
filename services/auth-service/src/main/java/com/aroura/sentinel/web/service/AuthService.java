@@ -10,16 +10,18 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.aroura.sentinel.service.api.domain.MessageParam;
+import com.aroura.sentinel.service.api.domain.SendRequest;
+import com.aroura.sentinel.service.api.domain.SendResponse;
+import com.aroura.sentinel.web.client.AuthMsgClient;
+
 import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-
-import cn.hutool.http.HttpRequest;
-import cn.hutool.http.ContentType;
-import com.alibaba.fastjson2.JSON;
 
 /**
  * 多角色登录认证服务
@@ -61,8 +63,7 @@ public class AuthService {
     /** 真实短信引擎：true 时验证码经 msg-service 短信模板下发 */
     @Value("${sms.engine.enabled:true}")
     private boolean engineEnabled;
-    @Value("${sms.engine.msg-url:http://127.0.0.1:8082}")
-    private String engineMsgUrl;
+    /** 短信模板 id 与 msg-service 的出站地址由 AuthMsgClient 的 @FeignClient 承载。 */
     @Value("${sms.engine.template-id:1011}")
     private long engineTemplateId;
     /** 单手机号 60s 内限发 1 条、单次验证码最多尝试次数（防爆破） */
@@ -71,9 +72,12 @@ public class AuthService {
     @Value("${sms.max-attempts:5}")
     private int maxAttempts;
 
-    public AuthService(StringRedisTemplate redisTemplate, SentinelUserDao userDao) {
+    private final AuthMsgClient authMsgClient;
+
+    public AuthService(StringRedisTemplate redisTemplate, SentinelUserDao userDao, AuthMsgClient authMsgClient) {
         this.redisTemplate = redisTemplate;
         this.userDao = userDao;
+        this.authMsgClient = authMsgClient;
     }
 
     /**
@@ -150,26 +154,19 @@ public class AuthService {
     /** 经 msg-service /send 走真实短信引擎（模板 sentinel:sms-code） */
     private boolean deliverSms(String phone, String code) {
         try {
-            Map<String, Object> messageParam = new HashMap<>(4);
-            messageParam.put("bizId", "smscode-" + phone);
-            messageParam.put("receiver", phone);
-            Map<String, Object> vars = new HashMap<>(2);
-            vars.put("code", code);
-            messageParam.put("variables", vars);
-            Map<String, Object> req = new HashMap<>(4);
-            req.put("code", "send");
-            req.put("messageTemplateId", engineTemplateId);
-            req.put("messageParam", messageParam);
-            String body = HttpRequest.post(engineMsgUrl + "/send")
-                    .header("Content-Type", ContentType.JSON.getValue())
-                    .body(JSON.toJSONString(req))
-                    .timeout(5000)
-                    .execute().body();
-            if (body == null) {
-                return false;
-            }
-            return "0".equals(JSON.parseObject(body).getString("code"));
+            SendResponse resp = authMsgClient.send(new SendRequest()
+                    .setCode("send")
+                    .setMessageTemplateId(engineTemplateId)
+                    .setMessageParam(new MessageParam()
+                            .setBizId("smscode-" + phone)
+                            .setReceiver(phone)
+                            .setVariables(Collections.singletonMap("code", code))));
+            return resp != null && "0".equals(resp.getCode());
         } catch (Exception e) {
+            // 启用 Feign 熔断且未配 fallback 时，**任何**失败都会被包装成
+            // NoFallbackAvailableException（熔断器打开时也是它，CallNotPermittedException 只是其 cause）。
+            // 对本方法无影响：catch(Exception) 一视同仁 —— 返回 false、回滚验证码、让调用方返回失败。
+            // 唯一的行为变化是熔断打开后从"等读超时"变成"立即失败"，用户更早拿到"发送失败"。
             log.warn("[Auth] deliverSms err {}", e.toString());
             return false;
         }

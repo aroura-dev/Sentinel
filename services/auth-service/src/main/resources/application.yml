@@ -45,6 +45,24 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # 配置中心：optional: 是红线 —— 拿不到配置也必须能启动。未播种时静默跳过，
+  # 本地 application.yml 的默认值继续生效（配置中心只做覆盖层，不是唯一真源）。
+  # 必须与 nacos-config starter 同时存在：SCA 有 import-check，classpath 上有该 starter
+  # 却没写 spring.config.import 会直接启动失败（No spring.config.import property has been defined）。
+  config:
+    import:
+      - optional:nacos:auth-service.yml
+      - optional:nacos:sentinel-common.yml
+  # 服务注册发现：注册到 Nacos，供网关 lb://auth-service 解析实例。
+  # 全栈同一 compose bridge 网络，注册容器网卡 IP 即可互达，无需设 discovery.ip。
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+      config:
+        refresh-enabled: true
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
   application:
     name: auth-service
   datasource:
@@ -71,6 +89,24 @@ sentinel:
 auth:
   remember-ttl-seconds: 604800
   register-default-role: MERCHANT
+
+# Feign 出站超时：对齐改造前 Hutool HttpRequest 的 5s 超时。
+# 验证码下发失败会回滚验证码并返回失败，不该让用户等太久。
+feign:
+  # Feign 熔断开关（**服务级**：对本服务所有 @FeignClient 一起生效）。
+  # 本服务只有 AuthMsgClient 一个客户端，所以没有副作用 —— 这正是它不能用在
+  # logistics-service 的原因（那边有 MsgClient + AgentClient 两个，见其 feign 块的注释）。
+  # 回滚：改成 false（或整段删掉）即可，不需要重建镜像。
+  circuitbreaker:
+    enabled: true
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 8000
+      msg-service:
+        connect-timeout: 3000
+        read-timeout: 5000
 
 # 日志格式：把 MDC 里的 requestId 打出来，使同一请求跨服务的日志可以按 ID 捞取。
 logging:
