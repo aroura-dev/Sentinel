@@ -3,6 +3,7 @@ package com.aroura.msg;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.context.annotation.FilterType;
@@ -21,6 +22,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * @author sentinel-ms
  */
 @EnableAsync
+// Feign 客户端（回执回调 logistics）。只扫 receipt 包：全包扫描会把共享模块里的
+// 接口也当成客户端处理。
+@EnableFeignClients(basePackages = "com.aroura.msg.receipt")
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.aroura.sentinel", "com.aroura.msg"}, excludeFilters = {
         @ComponentScan.Filter(type = FilterType.REGEX, pattern =

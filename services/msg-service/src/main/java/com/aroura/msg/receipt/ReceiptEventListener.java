@@ -2,6 +2,8 @@ package com.aroura.msg.receipt;
 
 import com.aroura.sentinel.common.domain.NotificationReceipt;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -19,12 +21,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class ReceiptEventListener {
 
+    private static final Logger log = LoggerFactory.getLogger(ReceiptEventListener.class);
+
     @Autowired
     private LogisticsReceiptClient receiptClient;
 
     /**
      * 异步处理：事件是在发送线程里发布的，同步回调会把 logistics 的网络往返
      * 叠加到每一次短信发送上。回执是辅助信息，不该左右主链路的耗时。
+     * <p>
+     * 失败只记日志、不抛出：回执丢失会让该记录停在 SENT（即当前行为），
+     * 而抛出异常会打断发送链路 —— 拿主线稳定换一条辅助信息不值得。
      */
     @Async
     @EventListener
@@ -32,6 +39,15 @@ public class ReceiptEventListener {
         if (receipt == null || receipt.getBizId() == null) {
             return;
         }
-        receiptClient.report(receipt.getBizId(), receipt.isAccepted(), receipt.getDetail());
+        try {
+            receiptClient.report(new ReceiptRequest(
+                    receipt.getBizId(), receipt.isAccepted(), receipt.getDetail()));
+        } catch (Exception e) {
+            // 启用 Feign 熔断且未配 fallback 时，任何失败都被包装成 NoFallbackAvailableException
+            // （熔断打开时亦然，cause 才是 CallNotPermittedException）。
+            // 对本方法无影响：一视同仁地只记日志 —— 回执丢失、记录停在 SENT，与不开熔断时一致。
+            log.warn("[Receipt] 回执上报失败 bizId={} accepted={} err={}",
+                    receipt.getBizId(), receipt.isAccepted(), e.getMessage());
+        }
     }
 }

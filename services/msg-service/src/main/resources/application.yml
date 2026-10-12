@@ -41,6 +41,21 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # 配置中心：optional: 是红线 —— 拿不到配置也必须能启动。
+  # 必须与 nacos-config starter 同时存在（SCA import-check 会因缺 spring.config.import 直接启动失败）。
+  config:
+    import:
+      - optional:nacos:msg-service.yml
+      - optional:nacos:sentinel-common.yml
+  # 服务注册发现：注册到 Nacos，供 logistics/auth 的 Feign 客户端解析实例。
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+      config:
+        refresh-enabled: true
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
   application:
     name: msg-service
   datasource:
@@ -67,8 +82,6 @@ spring:
 sentinel:
   mq:
     pipeline: kafka
-  nacos:
-    enabled: false
   xxl:
     job:
       enabled: false
@@ -105,15 +118,27 @@ ok:
     keep-alive-duration: 300
     max-idle-connections: 200
 
-# 配置中心开关（apollo/nacos 均不启用，本地直连）
+# 配置中心开关（apollo 不启用，本地直连；Nacos 配置中心见 spring.config.import）
 apollo:
   bootstrap:
     enabled: false
     namespaces: application
 
-nacos:
-  data-id: sentinel
-  group: DEFAULT_GROUP
+# Feign 出站超时：对齐改造前 receiptRestTemplate 的 3s(connect)/5s(read)。
+# 回执是 fire-and-forget 的辅助信息，读超时给太长会拖住发送线程。
+feign:
+  # Feign 熔断开关（**服务级**）。本服务只有 LogisticsReceiptClient 一个客户端，无副作用。
+  # 回滚：改成 false（或整段删掉）即可，不需要重建镜像。
+  circuitbreaker:
+    enabled: true
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 8000
+      logistics-service:
+        connect-timeout: 3000
+        read-timeout: 5000
 
 # 日志格式：把 MDC 里的 requestId 打出来，使同一请求跨服务的日志可以按 ID 捞取。
 logging:
