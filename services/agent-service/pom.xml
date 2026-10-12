@@ -31,6 +31,18 @@
             <artifactId>sentinel-ms-web</artifactId>
         </dependency>
 
+        <!-- ===== 服务治理：注册发现 + 配置中心 =====
+             agent 只被调用（/internal/agent/generate），没有出站调用，
+             故不引入 openfeign —— 少一个依赖就少一份装配面。 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
