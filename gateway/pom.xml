@@ -35,6 +35,24 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
+        <!-- 服务发现：路由 uri 用 lb://<serviceId> 解析下游实例。
+             loadbalancer 必须显式引入 —— gateway starter 不传递带入它，
+             缺了它 lb:// 只会报 "Unable to find instance for xxx"。 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- 路由级熔断：下游宕机/假死时快速失败，不再让请求傻等超时。
+             必须是 **reactor** 版 —— 网关跑在 WebFlux/Reactor 上，
+             servlet 版 spring-cloud-starter-circuitbreaker-resilience4j 在此进程里不生效。 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

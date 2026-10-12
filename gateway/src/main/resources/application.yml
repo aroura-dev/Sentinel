@@ -39,6 +39,13 @@ spring:
     password: ${SPRING_REDIS_PASSWORD:}
     timeout: 3000ms
   cloud:
+    # 服务注册发现：路由 uri 用 lb://<serviceId> 时靠它解析下游实例。
+    # 网关自身也注册（名 sentinel-gateway），便于在控制台里看到整个拓扑。
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
     gateway:
       globalcors:
         cors-configurations:
@@ -48,17 +55,40 @@ spring:
             allowedHeaders: "*"
             allowCredentials: false
       # 微服务专用网关：只路由到当前微服务集群，不依赖单体回源。
+      #
+      # uri 用 lb://<serviceId>，经 Nacos 服务发现 + Spring Cloud LoadBalancer 解析实例，
+      # 换 IP / 扩副本都无需改配置。路由 id 恰好等于下游的 spring.application.name。
+      # 仍保留 ${AUTH_URI:} 占位符是刻意留的**回退阀门**：把 AUTH_URI/LOGISTICS_URI
+      # 设回 http://host:port 即可退回静态直连（改 env 即生效，不必重建镜像）。
+      #
+      # 每条路由挂 CircuitBreaker：下游宕机/假死时**快速失败**，而不是让请求傻等连接或读超时。
+      # 熔断参数不在这里配 —— Resilience4j 的 TimeLimiter 默认仅 1s，只靠 YAML 关不掉，
+      # 会把下游正常但 >1s 的调用直接掐成 504。参数统一在 GatewayCircuitBreakerConfig 里给。
+      #
+      # ⚠️ 本进程的 actuator 暴露要克制：它与服务同端口，而 8080 是**唯一对宿主发布**的端口，
+      # 且 AuthGlobalFilter 只匹配 /api/**（/actuator/** 一律放行、不经鉴权）。
+      # 任何"能改变集群状态"的端点（刷新、下线、dump）都不得加进这里的 exposure。
       routes:
         # 认证服务
         - id: auth-service
-          uri: ${AUTH_URI:http://127.0.0.1:8081}
+          uri: ${AUTH_URI:lb://auth-service}
           predicates:
             - Path=/api/auth/login,/api/auth/logout,/api/auth/me,/api/auth/sms/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authRoute
+                fallbackUri: forward:/gateway-fallback/auth
         # 物流与通知闭环
         - id: logistics-service
-          uri: ${LOGISTICS_URI:http://127.0.0.1:8083}
+          uri: ${LOGISTICS_URI:lb://logistics-service}
           predicates:
             - Path=/api/logistics/orders/**,/api/logistics/notify/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: logisticsRoute
+                fallbackUri: forward:/gateway-fallback/logistics
 logging:
   # requestId 由 RequestIdGlobalFilter 生成并透传给下游；
   # 网关自身跑在 Reactor Netty 上（线程会切换），MDC 是 ThreadLocal，故此处通常为空。
